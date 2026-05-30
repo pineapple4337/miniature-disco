@@ -225,14 +225,39 @@
         function getCountdownText(dueDateStr) {
             if (!dueDateStr) return '';
             
-            const datePart = dueDateStr.split(' ')[0]; 
+            // Split date and time portions safely
+            const parts = dueDateStr.split(' ');
+            const datePart = parts[0];
+            const timePart = parts[1]; // Will be undefined if no time was input
+            
             const [year, month, day] = datePart.split('-').map(num => parseInt(num));
+            const targetDateClean = new Date(year, month - 1, day);
             
-            const targetClean = new Date(year, month - 1, day).getTime();
-            const todayClean = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate()).getTime();
+            const todayClean = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate());
+            const differenceInDays = Math.ceil((targetDateClean.getTime() - todayClean.getTime()) / (1000 * 3600 * 24));
             
-            const differenceInDays = Math.ceil((targetClean - todayClean) / (1000 * 3600 * 24));
+            // If it's today or tomorrow, AND there is a specific time assigned
+            if ((differenceInDays === 0 || differenceInDays === 1) && timePart) {
+                const [hours, minutes] = timePart.split(':').map(num => parseInt(num));
+                
+                // Create a precise target timestamp with hours and minutes
+                const preciseTarget = new Date(year, month - 1, day, hours, minutes).getTime();
+                const nowTimestamp = new Date().getTime();
+                
+                const msLeft = preciseTarget - nowTimestamp;
+                const hoursLeft = Math.floor(msLeft / (1000 * 60 * 60));
+                
+                if (msLeft < 0) {
+                    return '⚠️ overdue';
+                } else if (hoursLeft === 0) {
+                    const minsLeft = Math.floor(msLeft / (1000 * 60));
+                    return `⏳ in ${minsLeft} mins`;
+                } else {
+                    return `⏳ in ${hoursLeft} hrs`;
+                }
+            }
             
+            // Fallback to standard day-level logic if no time is present or it's further out
             if (differenceInDays === 0) return '📍 today';
             if (differenceInDays === 1) return '⏳ tomorrow';
             if (differenceInDays < 0) return '⚠️ overdue';
@@ -299,7 +324,7 @@
 
                     <div class="flex-1 min-w-0">
                         <div class="flex items-start justify-between gap-2">
-                            <div class="text-sm font-semibold lowercase break-all">
+                            <div class="text-sm font-semibold lowercase break-words">
                                 ${todo.title} ${hasNotes ? '<span class="text-[10px] ml-1">📝</span>' : ''}
                             </div>
                             <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors text-xs font-bold px-1 cursor-pointer shrink-0 inline-block line-none decoration-transparent">
