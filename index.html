@@ -3,55 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>pastel task tracker</title>
+    <title>pastel dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body {
-            background-color: #f3f4f6;
-            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
-            background-size: 20px 20px;
+            background-color: #f9fafb;
         }
         .pastel-pink { background-color: #ffd6e0; }
         .pastel-blue { background-color: #c1f0f6; }
         .pastel-green { background-color: #d8f3dc; }
         .pastel-purple { background-color: #e8dbfc; }
         .pastel-yellow { background-color: #fefae0; }
+        
+        /* Hide scrollbars but keep functionality */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4 text-gray-700">
+<body class="flex flex-col h-screen text-gray-700 font-sans">
 
-    <div class="w-full max-w-md p-6 bg-white shadow-xl rounded-2xl border border-gray-100">
-        <div class="flex items-center justify-between mb-6">
-            <h1 class="text-2xl font-bold tracking-tight text-gray-800">my tasks 🌸</h1>
-            <span id="task-count" class="px-3 py-1 text-xs font-semibold rounded-full pastel-purple">0 tasks</span>
+    <header class="sticky top-0 z-50 bg-white border-b border-gray-100 px-4 py-3 shadow-sm">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center justify-between w-full sm:w-auto">
+                <h1 class="text-xl font-bold tracking-tight text-gray-800">my deck 🌸</h1>
+                <span id="task-count" class="sm:hidden px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple">0 tasks</span>
+            </div>
+            
+            <form id="todo-form" class="flex w-full sm:max-w-md gap-2">
+                <input 
+                    type="text" 
+                    id="todo-input" 
+                    placeholder="what's next?" 
+                    required
+                    class="flex-1 px-4 py-2.5 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all"
+                >
+                <button 
+                    type="submit" 
+                    class="px-5 py-2.5 text-sm font-semibold text-gray-700 rounded-xl pastel-pink hover:opacity-90 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                >
+                    add task
+                </button>
+            </form>
         </div>
+    </header>
 
-        <form id="todo-form" class="flex gap-2 mb-6">
-            <input 
-                type="text" 
-                id="todo-input" 
-                placeholder="what's next?" 
-                required
-                class="flex-1 px-4 py-3 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all"
-            >
-            <button 
-                type="submit" 
-                class="px-5 py-3 text-sm font-semibold text-gray-700 rounded-xl pastel-pink hover:opacity-90 active:scale-95 transition-all cursor-pointer"
-            >
-                add
-            </button>
-        </form>
+    <main class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-4 gap-4">
+        
+        <section class="hidden md:flex flex-col flex-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="calendar-month-year" class="text-lg font-bold text-gray-800">may 2026</h2>
+            </div>
+            <div class="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-400 mb-2">
+                <div>sun</div><div>mon</div><div>tue</div><div>wed</div><div>thu</div><div>fri</div><div>sat</div>
+            </div>
+            <div id="calendar-days" class="grid grid-cols-7 gap-2 flex-1 auto-rows-fr">
+                </div>
+        </section>
 
-        <div id="loading-state" class="text-center py-4 text-sm text-gray-400">loading your deck...</div>
-        <ul id="todo-list" class="space-y-3 max-h-[400px] overflow-y-auto pr-1 hidden">
-            </ul>
-    </div>
+        <section class="w-full md:w-80 flex flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-gray-800">timeline</h2>
+                <span id="desktop-task-count" class="hidden md:inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple">0 tasks</span>
+            </div>
+            
+            <div id="loading-state" class="text-center py-8 text-sm text-gray-400">loading your deck...</div>
+            
+            <ul id="todo-list" class="space-y-3 flex-1 overflow-y-auto no-scrollbar hidden">
+                </ul>
+        </section>
+
+    </main>
 
     <script>
         // --- SUPABASE CONFIGURATION ---
-        const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
-        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        const SUPABASE_URL = rvuidgtkyerxhbiknznr.supabase.co;
+        const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2dWlkZ3RreWVyeGhiaWtuem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjA2MTUsImV4cCI6MjA5NTY5NjYxNX0.D_a_Ez5PHNnANp9O_zPeZbztphBP2pBHtLDN67-Ren4;
         
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -60,13 +87,21 @@
         const todoInput = document.getElementById('todo-input');
         const todoList = document.getElementById('todo-list');
         const loadingState = document.getElementById('loading-state');
-        const taskCount = document.getElementById('task-count');
+        const mobileTaskCount = document.getElementById('task-count');
+        const desktopTaskCount = document.getElementById('desktop-task-count');
+        const calendarDays = document.getElementById('calendar-days');
+        const calendarMonthYear = document.getElementById('calendar-month-year');
 
         const pastelColors = ['pastel-pink', 'pastel-blue', 'pastel-green', 'pastel-purple', 'pastel-yellow'];
 
+        // Get current date context for the static display calendar
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth(); 
+
         // --- FUNCTIONS ---
         
-        // Fetch tasks from your schema
+        // Fetch tasks chronologically (newest created first)
         async function fetchTodos() {
             const { data, error } = await supabase
                 .from('todos')
@@ -75,38 +110,74 @@
 
             if (error) {
                 console.error('Error fetching data:', error);
-                loadingState.textContent = 'database error. check console or RLS policies.';
+                loadingState.textContent = 'database link failed.';
                 return;
             }
 
-            renderTodos(data);
+            renderDashboard(data);
         }
 
-        // Render tasks into the UI
-        function renderTodos(todos) {
+        // Render both the sidebar and the background dashboard elements
+        function renderDashboard(todos) {
+            // Update List UI
             todoList.innerHTML = '';
             loadingState.classList.add('hidden');
             todoList.classList.remove('hidden');
-            taskCount.textContent = `${todos.length} task${todos.length === 1 ? '' : 's'}`;
+            
+            const countStr = `${todos.length} task${todos.length === 1 ? '' : 's'}`;
+            mobileTaskCount.textContent = countStr;
+            desktopTaskCount.textContent = countStr;
 
+            // Render Chronological Timeline
             todos.forEach((todo, index) => {
                 const colorClass = pastelColors[index % pastelColors.length];
                 const li = document.createElement('li');
-                li.className = `flex items-center justify-between p-4 rounded-xl border border-black/5 transition-all ${colorClass} ${todo.is_completed ? 'opacity-50 line-through' : ''}`;
+                li.className = `flex items-center justify-between p-3.5 rounded-xl border border-black/5 transition-all ${colorClass} ${todo.is_completed ? 'opacity-40 line-through' : ''}`;
                 
                 li.innerHTML = `
                     <span class="text-sm font-medium lowercase cursor-pointer flex-1" onclick="toggleTodo('${todo.id}', ${todo.is_completed})">
                         ${todo.title}
                     </span>
-                    <button onclick="deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors cursor-pointer text-sm font-bold px-1 ml-2">
+                    <button onclick="deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors cursor-pointer text-xs font-bold px-1 ml-2">
                         ✕
                     </button>
                 `;
                 todoList.appendChild(li);
             });
+
+            renderCalendarGrid(todos);
         }
 
-        // Insert new task into your table
+        // Generate a visual background grid context for the desktop homepage
+        function renderCalendarGrid(todos) {
+            calendarDays.innerHTML = '';
+            
+            const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+            calendarMonthYear.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+            const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
+            const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+            // Padding items for previous month overhang
+            for (let i = 0; i < firstDayIndex; i++) {
+                const blank = document.createElement('div');
+                blank.className = "bg-gray-50/50 rounded-xl border border-dashed border-gray-100";
+                calendarDays.appendChild(blank);
+            }
+
+            // Fill actual month days
+            for (let day = 1; day <= totalDays; day++) {
+                const dayBox = document.createElement('div');
+                const isToday = day === now.getDate() && currentMonth === now.getMonth();
+                
+                dayBox.className = `p-2 rounded-xl border border-gray-100 flex flex-col items-start justify-between text-left text-xs font-medium transition-all ${isToday ? 'bg-amber-50/70 border-amber-200 ring-2 ring-amber-100' : 'bg-gray-50/30'}`;
+                dayBox.innerHTML = `<span class="${isToday ? 'text-amber-700 font-bold' : 'text-gray-400'}">${day}</span>`;
+                
+                calendarDays.appendChild(dayBox);
+            }
+        }
+
+        // Insert task directly through top bar
         todoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = todoInput.value.trim().toLowerCase();
@@ -118,25 +189,21 @@
 
             if (error) {
                 console.error('Error adding data:', error);
-                alert('could not save task. check console.');
             } else {
                 todoInput.value = '';
                 fetchTodos();
             }
         });
 
-        // Globally exposed action handlers
+        // Event hooks
         window.toggleTodo = async function(id, currentStatus) {
             const { error } = await supabase
                 .from('todos')
                 .update({ is_completed: !currentStatus })
                 .eq('id', id);
 
-            if (error) {
-                console.error('Error updating data:', error);
-            } else {
-                fetchTodos();
-            }
+            if (error) console.error('Error updating status:', error);
+            else fetchTodos();
         };
 
         window.deleteTodo = async function(id) {
@@ -145,18 +212,15 @@
                 .delete()
                 .eq('id', id);
 
-            if (error) {
-                console.error('Error deleting data:', error);
-            } else {
-                fetchTodos();
-            }
+            if (error) console.error('Error removing entry:', error);
+            else fetchTodos();
         };
 
-        // Initialize application on load
-        if (SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL') {
+        // Run
+        if (SUPABASE_URL !== rvuidgtkyerxhbiknznr.supabase.co) {
             fetchTodos();
         } else {
-            loadingState.textContent = 'please configure your supabase keys inside the script tag.';
+            loadingState.textContent = 'insert your credentials in the file script block to connect.';
         }
     </script>
 </body>
