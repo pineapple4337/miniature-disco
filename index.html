@@ -6,6 +6,12 @@
     <title>pastel dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="my deck">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23ffd6e0'/><stop offset='100%25' stop-color='%23e8dbfc'/></linearGradient></defs><rect width='180' height='180' rx='40' fill='url(%23g)'/></svg>">
+
     <style>
         body {
             background-color: #fafafa;
@@ -21,7 +27,7 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* FIX: Lock mobile outer viewport layout completely static while preserving native desktop rules */
+        /* Lock mobile outer viewport layout completely static while preserving native desktop rules */
         @media (max-width: 767px) {
             html, body {
                 position: fixed;
@@ -36,17 +42,13 @@
             }
         }
     </style>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="my deck">
-    <link rel="apple-touch-icon" href="https://i.ibb.co/6w3w7G59/my-deck-ios-icon.png">
 </head>
 <body class="flex flex-col h-screen text-gray-700 font-sans">
 
     <header class="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 shadow-sm shrink-0">
         <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
             <div class="flex items-center justify-between w-full lg:w-auto">
-                <h1 class="text-xl font-bold tracking-tight text-gray-800">to-dos 🌸</h1>
+                <h1 class="text-xl font-bold tracking-tight text-gray-800">my deck 🌸</h1>
                 <span id="task-count" class="lg:hidden px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple-1">0 tasks</span>
             </div>
             
@@ -154,7 +156,7 @@
                             style="background: linear-gradient(to right, #ffd6e0 0%, #e8dbfc 0%, #e5e7eb 0%);"
                             oninput="
                                 document.getElementById('modal-slider-value').textContent = this.value + '%';
-                                this.style.background = 'linear-gradient(to right, #ffd6e0 0%, #e8dbfc ' + this.value + '%, #e5e7eb ' + this.value + '%)';
+                                this.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${this.value}%, #e5e7eb ${this.value}%)`;
                             "
                         >
                     </div>
@@ -277,24 +279,33 @@
 
                 const li = document.createElement('li');
                 li.id = `task-card-${todo.id}`;
-                li.className = `flex flex-col p-4 rounded-xl border border-black/5 transition-all cursor-pointer ${colorClass} ${isDone ? 'opacity-40 line-through' : ''}`;
+                li.className = `flex gap-3 items-start p-4 rounded-xl border border-black/5 transition-all cursor-pointer ${colorClass} ${isDone ? 'opacity-40 line-through' : ''}`;
                 li.onclick = () => openModal(todo.id);
                 
                 li.innerHTML = `
-                    <div class="flex items-start justify-between gap-2">
-                        <div class="flex-1 text-sm font-semibold lowercase break-all">
-                            ${todo.title} ${hasNotes ? '<span class="text-[10px] ml-1">📝</span>' : ''}
-                        </div>
-                        <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors text-xs font-bold px-1 cursor-pointer shrink-0 line-none decoration-transparent inline-block">
-                            ✕
-                        </button>
+                    <div 
+                        onclick="event.stopPropagation(); fastToggleTodo('${todo.id}', ${isDone})" 
+                        class="w-5 h-5 rounded-full border-2 border-purple-950/20 bg-white/80 flex items-center justify-center font-bold text-[10px] text-purple-700 select-none shrink-0 mt-0.5 hover:bg-purple-100 transition-colors"
+                    >
+                        ${isDone ? '✓' : ''}
                     </div>
-                    <div class="flex items-center justify-between mt-2 text-[11px] font-medium tracking-tight text-purple-950/60">
-                        <div class="flex items-center gap-2">
-                            <span>${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
-                            ${!isDone && progressPct > 0 ? `<span class="text-[10px] bg-purple-500/10 text-purple-700 px-1.5 py-0.2 rounded font-bold">${progressPct}%</span>` : ''}
+
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="text-sm font-semibold lowercase break-all">
+                                ${todo.title} ${hasNotes ? '<span class="text-[10px] ml-1">📝</span>' : ''}
+                            </div>
+                            <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors text-xs font-bold px-1 cursor-pointer shrink-0 inline-block line-none decoration-transparent">
+                                ✕
+                            </button>
                         </div>
-                        <span class="bg-white/60 px-2 py-0.5 rounded-md font-bold shadow-2xs">${countdown}</span>
+                        <div class="flex items-center justify-between mt-2 text-[11px] font-medium tracking-tight text-purple-950/60">
+                            <div class="flex items-center gap-2">
+                                <span>${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
+                                ${!isDone && progressPct > 0 ? `<span class="text-[10px] bg-purple-500/10 text-purple-700 px-1.5 py-0.2 rounded font-bold">${progressPct}%</span>` : ''}
+                            </div>
+                            <span class="bg-white/60 px-2 py-0.5 rounded-md font-bold shadow-2xs">${countdown}</span>
+                        </div>
                     </div>
                 `;
                 todoList.appendChild(li);
@@ -318,6 +329,9 @@
             const currentProgress = todo.progress !== undefined && todo.progress !== null ? todo.progress : (todo.is_completed ? 100 : 0);
             modalTaskProgress.value = currentProgress;
             modalSliderValue.textContent = currentProgress + '%';
+            
+            // Set slider track color initialization split state cleanly
+            modalTaskProgress.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${currentProgress}%, #e5e7eb ${currentProgress}%)`;
 
             taskModal.classList.remove('hidden');
         };
@@ -360,6 +374,20 @@
                 closeModal();
                 fetchTodos();
             }
+        };
+
+        window.fastToggleTodo = async function(id, currentStatus) {
+            const nextStatus = !currentStatus;
+            const { error } = await supabaseClient
+                .from('todos')
+                .update({ 
+                    is_completed: nextStatus,
+                    progress: nextStatus ? 100 : 0
+                })
+                .eq('id', id);
+
+            if (error) console.error('Error tracking quick toggle change state:', error);
+            else fetchTodos();
         };
 
         function renderCalendarGrid() {
