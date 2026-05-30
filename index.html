@@ -148,14 +148,10 @@
         // --- CORE APPLICATION LOGIC ---
 
         async function fetchTodos() {
-            // Instantly render calendar layout shells so the interface is never blank while fetching data
+            // Instantly draw calendar outline grid layout shells on screen
             renderCalendarGrid();
 
-            if (SUPABASE_URL.includes('rvuidgtkyerxhbiknznr')) {
-                loadingState.textContent = 'update your supabase credentials inside the script block.';
-                return;
-            }
-
+            // Fixed: Removed the restrictive verification check block that was blocking layout loading execution loop
             const { data, error } = await supabaseClient
                 .from('todos')
                 .select('*')
@@ -163,7 +159,7 @@
 
             if (error) {
                 console.error('Error fetching data:', error);
-                loadingState.textContent = 'database link failed.';
+                loadingState.textContent = 'database link failed. check your credentials.';
                 return;
             }
             
@@ -215,11 +211,8 @@
             renderCalendarGrid();
         }
 
-        // Inline Text Field Form Generation
         window.enableInlineEdit = function(id, currentTitle) {
             const container = document.getElementById(`title-container-${id}`);
-            
-            // Generate inline editing element block
             container.removeAttribute('onclick'); 
             container.innerHTML = `
                 <div class="flex gap-1.5 w-full mt-0.5" onclick="event.stopPropagation();">
@@ -233,12 +226,9 @@
                     <button onclick="fetchTodos()" class="px-2 py-1 text-[10px] font-bold bg-white/50 rounded-lg hover:bg-white shadow-2xs border border-black/5 cursor-pointer">cancel</button>
                 </div>
             `;
-            
-            // Instantly auto focus the target element
             document.getElementById(`edit-input-${id}`).focus();
         };
 
-        // Save modification to database
         window.saveInlineEdit = async function(id) {
             const inputField = document.getElementById(`edit-input-${id}`);
             const updatedTitle = inputField.value.trim().toLowerCase();
@@ -355,7 +345,7 @@
             else fetchTodos();
         };
 
-        // Run instantly on layout insertion initialization
+        // Run instantly on file compilation load
         fetchTodos();
     </script>
 </body>
