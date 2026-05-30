@@ -66,7 +66,7 @@
         
         <section class="hidden md:flex flex-col flex-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
             <div class="flex items-center justify-between mb-4">
-                <h2 id="calendar-month-year" class="text-lg font-bold text-gray-800 lowercase">may 2026</h2>
+                <h2 id="calendar-month-year" class="text-lg font-bold text-gray-800 lowercase">...</h2>
                 <div class="flex gap-1">
                     <button onclick="changeMonth(-1)" class="p-2 text-sm font-bold bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 transition-colors cursor-pointer text-gray-500">‹</button>
                     <button onclick="changeMonth(1)" class="p-2 text-sm font-bold bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 transition-colors cursor-pointer text-gray-500">›</button>
@@ -112,17 +112,12 @@
         const calendarDays = document.getElementById('calendar-days');
         const calendarMonthYear = document.getElementById('calendar-month-year');
 
-        // Monochromatic Pink/Purple cycle array
         const pinkPurpleColors = ['pastel-pink-1', 'pastel-purple-1', 'pastel-orchid', 'pastel-pink-2', 'pastel-purple-2'];
 
-        // Core tracking state for dates
         const actualToday = new Date();
-        let displayDate = new Date(); // Tracks currently viewed calendar page
+        let displayDate = new Date(); 
 
-        // Set default date picker input value to today
         todoDate.value = actualToday.toISOString().split('T')[0];
-
-        // Global dataset store to allow fluid calendar shifts without extra network queries
         let globalTodosCache = [];
 
         // --- HELPER FUNCTIONS ---
@@ -150,9 +145,17 @@
             return `✨ ${differenceInDays} days left`;
         }
 
-        // --- CALENDAR & TIMELINE SYSTEM ---
+        // --- CORE APPLICATION LOGIC ---
 
         async function fetchTodos() {
+            // Instantly render calendar layout shells so the interface is never blank while fetching data
+            renderCalendarGrid();
+
+            if (SUPABASE_URL.includes('rvuidgtkyerxhbiknznr')) {
+                loadingState.textContent = 'update your supabase credentials inside the script block.';
+                return;
+            }
+
             const { data, error } = await supabaseClient
                 .from('todos')
                 .select('*')
@@ -177,7 +180,6 @@
             mobileTaskCount.textContent = countStr;
             desktopTaskCount.textContent = countStr;
 
-            // Render Timeline Cards (Pink/Purple Only)
             globalTodosCache.forEach((todo, index) => {
                 const colorClass = pinkPurpleColors[index % pinkPurpleColors.length];
                 const parts = todo.due_date ? todo.due_date.split(' ') : [];
@@ -185,16 +187,22 @@
                 const countdown = todo.is_completed ? '✅ done' : getCountdownText(todo.due_date);
 
                 const li = document.createElement('li');
+                li.id = `task-card-${todo.id}`;
                 li.className = `flex flex-col p-4 rounded-xl border border-black/5 transition-all ${colorClass} ${todo.is_completed ? 'opacity-40 line-through' : ''}`;
                 
                 li.innerHTML = `
                     <div class="flex items-start justify-between gap-2">
-                        <span class="text-sm font-semibold lowercase cursor-pointer flex-1" onclick="toggleTodo('${todo.id}', ${todo.is_completed})">
+                        <div id="title-container-${todo.id}" class="flex-1 text-sm font-semibold lowercase cursor-pointer break-all" onclick="toggleTodo('${todo.id}', ${todo.is_completed})">
                             ${todo.title}
-                        </span>
-                        <button onclick="deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors cursor-pointer text-xs font-bold px-1">
-                            ✕
-                        </button>
+                        </div>
+                        <div class="flex items-center gap-1.5 ml-2 shrink-0">
+                            <button onclick="event.stopPropagation(); enableInlineEdit('${todo.id}', '${todo.title.replace(/'/g, "\\'")}')" class="text-gray-400 hover:text-purple-600 transition-colors text-xs font-bold px-1 cursor-pointer" title="edit description">
+                                ✎
+                            </button>
+                            <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors text-xs font-bold px-1 cursor-pointer">
+                                ✕
+                            </button>
+                        </div>
                     </div>
                     <div class="flex items-center justify-between mt-2 text-[11px] font-medium text-purple-950/60 tracking-tight">
                         <span class="opacity-70">${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
@@ -206,6 +214,49 @@
 
             renderCalendarGrid();
         }
+
+        // Inline Text Field Form Generation
+        window.enableInlineEdit = function(id, currentTitle) {
+            const container = document.getElementById(`title-container-${id}`);
+            
+            // Generate inline editing element block
+            container.removeAttribute('onclick'); 
+            container.innerHTML = `
+                <div class="flex gap-1.5 w-full mt-0.5" onclick="event.stopPropagation();">
+                    <input 
+                        type="text" 
+                        id="edit-input-${id}" 
+                        value="${currentTitle}" 
+                        class="w-full px-2 py-1 text-xs lowercase bg-white/80 border border-purple-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-400 font-normal"
+                    >
+                    <button onclick="saveInlineEdit('${id}')" class="px-2 py-1 text-[10px] font-bold text-white bg-purple-500 rounded-lg hover:bg-purple-600 shadow-2xs cursor-pointer">save</button>
+                    <button onclick="fetchTodos()" class="px-2 py-1 text-[10px] font-bold bg-white/50 rounded-lg hover:bg-white shadow-2xs border border-black/5 cursor-pointer">cancel</button>
+                </div>
+            `;
+            
+            // Instantly auto focus the target element
+            document.getElementById(`edit-input-${id}`).focus();
+        };
+
+        // Save modification to database
+        window.saveInlineEdit = async function(id) {
+            const inputField = document.getElementById(`edit-input-${id}`);
+            const updatedTitle = inputField.value.trim().toLowerCase();
+            
+            if (!updatedTitle) return;
+
+            const { error } = await supabaseClient
+                .from('todos')
+                .update({ title: updatedTitle })
+                .eq('id', id);
+
+            if (error) {
+                console.error('Error updating text content:', error);
+                alert('failed to update text content.');
+            } else {
+                fetchTodos();
+            }
+        };
 
         function renderCalendarGrid() {
             calendarDays.innerHTML = '';
@@ -219,24 +270,19 @@
             const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay();
             const totalDays = new Date(viewYear, viewMonth + 1, 0).getDate();
 
-            // Overlay spacers
             for (let i = 0; i < firstDayIndex; i++) {
                 const blank = document.createElement('div');
                 blank.className = "bg-purple-50/10 rounded-xl border border-dashed border-purple-100/40 min-h-[90px]";
                 calendarDays.appendChild(blank);
             }
 
-            // Build structural views dynamically
             for (let day = 1; day <= totalDays; day++) {
                 const dayBox = document.createElement('div');
-                
-                // Absolute truth check for highlighted current date card
                 const isRealToday = day === actualToday.getDate() && viewMonth === actualToday.getMonth() && viewYear === actualToday.getFullYear();
                 
                 const currentDayString = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const dayTasks = globalTodosCache.filter(t => t.due_date && t.due_date.startsWith(currentDayString));
 
-                // Beautiful glowing soft purple border/background for current active day instead of original orange/yellow
                 dayBox.className = `p-2 rounded-xl border border-gray-100 flex flex-col items-start justify-between text-left text-xs font-medium transition-all min-h-[90px] overflow-hidden ${isRealToday ? 'bg-purple-50 border-purple-300 ring-2 ring-purple-100/50' : 'bg-gray-50/30'}`;
                 
                 let tasksContainerHtml = '<div class="w-full space-y-1 mt-1 max-h-[60px] overflow-y-auto no-scrollbar">';
@@ -260,13 +306,11 @@
             }
         }
 
-        // External method linked to header slider chevron buttons
         window.changeMonth = function(direction) {
             displayDate.setMonth(displayDate.getMonth() + direction);
             renderCalendarGrid();
         };
 
-        // Handle addition
         todoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = todoInput.value.trim().toLowerCase();
@@ -311,12 +355,8 @@
             else fetchTodos();
         };
 
-        // Init Check Run
-        if (SUPABASE_URL !== 'https://rvuidgtkyerxhbiknznr.supabase.co') {
-            fetchTodos();
-        } else {
-            loadingState.textContent = 'insert your credentials in the file script block to connect.';
-        }
+        // Run instantly on layout insertion initialization
+        fetchTodos();
     </script>
 </body>
 </html>
