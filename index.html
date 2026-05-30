@@ -93,14 +93,14 @@
 
     <main class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-4 gap-4 min-h-0">
         <div class="flex md:hidden bg-white border border-gray-100 p-1 rounded-xl gap-1 shrink-0 mx-4 mt-2">
-            <button id="tab-btn-calendar" onclick="switchMobileTab('calendar')" class="flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all pastel-purple-1 text-gray-700">
-                calendar 📅
-            </button>
-            <button id="tab-btn-timeline" onclick="switchMobileTab('timeline')" class="flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-gray-600">
+            <button id="tab-btn-timeline" onclick="switchMobileTab('timeline')" class="flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all pastel-purple-1 text-gray-700">
                 timeline 🌸
             </button>
+            <button id="tab-btn-calendar" onclick="switchMobileTab('calendar')" class="flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-gray-600">
+                calendar 📅
+            </button>
         </div>
-        <section id="mobile-sec-calendar" class="flex flex-col flex-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
+        <section id="mobile-sec-calendar" class="hidden md:flex flex-col flex-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
             <div class="flex items-center justify-between mb-4">
                 <h2 id="calendar-month-year" class="text-lg font-bold text-gray-800 lowercase">...</h2>
                 <div class="flex gap-1">
@@ -115,7 +115,7 @@
                 </div>
         </section>
 
-        <section id="mobile-sec-timeline" class="hidden md:flex w-full md:w-85 flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden h-full">
+        <section id="mobile-sec-timeline" class="flex w-full md:w-85 flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden h-full">
             <div class="flex items-center justify-between mb-4 shrink-0">
                 <h2 class="text-lg font-bold text-gray-800">timeline</h2>
                 <span id="desktop-task-count" class="hidden md:inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple-1">0 tasks</span>
@@ -272,7 +272,7 @@
                 document.getElementById('mobile-sec-timeline').classList.remove('hidden');
                 document.getElementById('mobile-sec-timeline').classList.add('flex');
             } else {
-                switchMobileTab('calendar');
+                switchMobileTab('timeline');
             }
         });
         
