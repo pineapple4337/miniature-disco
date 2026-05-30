@@ -50,9 +50,8 @@
 
     <script>
         // --- SUPABASE CONFIGURATION ---
-        // Replace these with your actual Supabase project credentials
-        const SUPABASE_URL = https://rvuidgtkyerxhbiknznr.supabase.co;
-        const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2dWlkZ3RreWVyeGhiaWtuem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjA2MTUsImV4cCI6MjA5NTY5NjYxNX0.D_a_Ez5PHNnANp9O_zPeZbztphBP2pBHtLDN67-Ren4;
+        const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
         
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -63,12 +62,11 @@
         const loadingState = document.getElementById('loading-state');
         const taskCount = document.getElementById('task-count');
 
-        // Pastel classes array to cycle through colors beautifully
         const pastelColors = ['pastel-pink', 'pastel-blue', 'pastel-green', 'pastel-purple', 'pastel-yellow'];
 
         // --- FUNCTIONS ---
         
-        // Fetch tasks on load
+        // Fetch tasks from your schema
         async function fetchTodos() {
             const { data, error } = await supabase
                 .from('todos')
@@ -76,15 +74,15 @@
                 .order('created_at', { ascending: false });
 
             if (error) {
-                console.error('error fetching data:', error);
-                loadingState.textContent = 'failed to load tasks.';
+                console.error('Error fetching data:', error);
+                loadingState.textContent = 'database error. check console or RLS policies.';
                 return;
             }
 
             renderTodos(data);
         }
 
-        // Render tasks to DOM
+        // Render tasks into the UI
         function renderTodos(todos) {
             todoList.innerHTML = '';
             loadingState.classList.add('hidden');
@@ -94,13 +92,13 @@
             todos.forEach((todo, index) => {
                 const colorClass = pastelColors[index % pastelColors.length];
                 const li = document.createElement('li');
-                li.className = `flex items-center justify-between p-4 rounded-xl border border-black/5 transition-all ${colorClass} ${todo.is_completed ? 'opacity-60 line-through' : ''}`;
+                li.className = `flex items-center justify-between p-4 rounded-xl border border-black/5 transition-all ${colorClass} ${todo.is_completed ? 'opacity-50 line-through' : ''}`;
                 
                 li.innerHTML = `
-                    <span class="text-sm font-medium lowercase cursor-pointer" onclick="toggleTodo('${todo.id}', ${todo.is_completed})">
+                    <span class="text-sm font-medium lowercase cursor-pointer flex-1" onclick="toggleTodo('${todo.id}', ${todo.is_completed})">
                         ${todo.title}
                     </span>
-                    <button onclick="deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors cursor-pointer text-sm font-bold px-1">
+                    <button onclick="deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors cursor-pointer text-sm font-bold px-1 ml-2">
                         ✕
                     </button>
                 `;
@@ -108,7 +106,7 @@
             });
         }
 
-        // Insert new task
+        // Insert new task into your table
         todoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = todoInput.value.trim().toLowerCase();
@@ -119,42 +117,42 @@
                 .insert([{ title, is_completed: false }]);
 
             if (error) {
-                console.error('error adding data:', error);
+                console.error('Error adding data:', error);
+                alert('could not save task. check console.');
             } else {
                 todoInput.value = '';
                 fetchTodos();
             }
         });
 
-        // Toggle completion status
-        async function toggleTodo(id, currentStatus) {
+        // Globally exposed action handlers
+        window.toggleTodo = async function(id, currentStatus) {
             const { error } = await supabase
                 .from('todos')
                 .update({ is_completed: !currentStatus })
                 .eq('id', id);
 
             if (error) {
-                console.error('error updating data:', error);
+                console.error('Error updating data:', error);
             } else {
                 fetchTodos();
             }
-        }
+        };
 
-        // Delete task
-        async function deleteTodo(id) {
+        window.deleteTodo = async function(id) {
             const { error } = await supabase
                 .from('todos')
                 .delete()
                 .eq('id', id);
 
             if (error) {
-                console.error('error deleting data:', error);
+                console.error('Error deleting data:', error);
             } else {
                 fetchTodos();
             }
-        }
+        };
 
-        // Initialize application
+        // Initialize application on load
         if (SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL') {
             fetchTodos();
         } else {
