@@ -36,13 +36,17 @@
             }
         }
     </style>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="my deck">
+    <link rel="apple-touch-icon" href="https://i.ibb.co/6w3w7G59/my-deck-ios-icon.png">
 </head>
 <body class="flex flex-col h-screen text-gray-700 font-sans">
 
     <header class="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 shadow-sm shrink-0">
         <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
             <div class="flex items-center justify-between w-full lg:w-auto">
-                <h1 class="text-xl font-bold tracking-tight text-gray-800">my deck 🌸</h1>
+                <h1 class="text-xl font-bold tracking-tight text-gray-800">to-dos 🌸</h1>
                 <span id="task-count" class="lg:hidden px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple-1">0 tasks</span>
             </div>
             
@@ -147,7 +151,11 @@
                             max="100" 
                             step="5"
                             class="w-full accent-purple-400 cursor-pointer h-1.5 bg-gray-200 rounded-lg appearance-none"
-                            oninput="document.getElementById('modal-slider-value').textContent = this.value + '%'"
+                            style="background: linear-gradient(to right, #ffd6e0 0%, #e8dbfc 0%, #e5e7eb 0%);"
+                            oninput="
+                                document.getElementById('modal-slider-value').textContent = this.value + '%';
+                                this.style.background = 'linear-gradient(to right, #ffd6e0 0%, #e8dbfc ' + this.value + '%, #e5e7eb ' + this.value + '%)';
+                            "
                         >
                     </div>
                 </div>
