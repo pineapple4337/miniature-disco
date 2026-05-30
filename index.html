@@ -29,9 +29,11 @@
 
         /* Let mobile layout stack vertically and handle tab swapping cleanly */
         @media (max-width: 767px) {
-            body {
+            html, body {
                 height: auto !important;
                 overflow-x: hidden;
+                /* FIXED: Prevents browser pull-to-refresh behavior from breaking tab state */
+                overscroll-behavior-y: contain;
             }
             main {
                 flex-direction: column !important;
@@ -258,8 +260,12 @@
             }
         };
 
-        // Add a simple resize listener to ensure layout displays accurately if swapping device orientations
+        // FIXED: Only trigger layout switches if the actual desktop-vs-mobile width changes, ignoring vertical URL bar shifts
+        let lastCachedWidth = window.innerWidth;
         window.addEventListener('resize', () => {
+            if (window.innerWidth === lastCachedWidth) return; // Ignore if width hasn't changed
+            lastCachedWidth = window.innerWidth;
+
             if (window.innerWidth >= 768) {
                 document.getElementById('mobile-sec-calendar').classList.remove('hidden');
                 document.getElementById('mobile-sec-calendar').classList.add('flex');
