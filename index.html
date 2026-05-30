@@ -96,7 +96,7 @@
     <div id="task-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-xs transition-opacity">
         <div class="w-full max-w-md p-6 bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col gap-4">
             <div class="flex items-center justify-between border-b border-gray-50 pb-2">
-                <h3 class="text-md font-bold text-gray-800">task details ✨</h3>
+                <h3 class="text-md font-bold text-gray-800">task details 📌</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
             </div>
             
@@ -120,19 +120,32 @@
                 </div>
 
                 <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-xs font-bold text-purple-900/40 lowercase">progress</label>
+                        <span id="modal-slider-value" class="text-xs font-bold text-purple-600">0%</span>
+                    </div>
+                    <div class="flex items-center gap-3 bg-gray-50 px-3 py-2.5 rounded-xl">
+                        <input 
+                            type="range" 
+                            id="modal-task-progress" 
+                            min="0" 
+                            max="100" 
+                            step="5"
+                            class="w-full accent-purple-400 cursor-pointer h-1.5 bg-gray-200 rounded-lg appearance-none"
+                            oninput="document.getElementById('modal-slider-value').textContent = this.value + '%'"
+                        >
+                    </div>
+                </div>
+
+                <div>
                     <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">notes</label>
-                    <textarea id="modal-task-notes" rows="4" placeholder="add details, links, or lists here..." class="w-full px-3 py-2.5 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none text-gray-600 placeholder-gray-300"></textarea>
+                    <textarea id="modal-task-notes" rows="3" placeholder="add details, links, or lists here..." class="w-full px-3 py-2.5 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none text-gray-600 placeholder-gray-300"></textarea>
                 </div>
             </div>
 
-            <div class="flex items-center justify-between gap-2 mt-2">
-                <button id="modal-toggle-status-btn" class="px-4 py-2 text-xs font-bold rounded-xl bg-gray-50 hover:bg-gray-100 border border-black/5 cursor-pointer transition-colors text-gray-500">
-                    mark complete
-                </button>
-                <div class="flex gap-2">
-                    <button onclick="closeModal()" class="px-4 py-2 text-xs font-semibold bg-gray-50 hover:bg-gray-100 rounded-xl cursor-pointer text-gray-500">cancel</button>
-                    <button onclick="saveModalChanges()" class="px-4 py-2 text-xs font-bold text-gray-700 pastel-pink-1 hover:opacity-90 rounded-xl shadow-2xs cursor-pointer">save changes</button>
-                </div>
+            <div class="flex items-center justify-end gap-2 mt-2">
+                <button onclick="closeModal()" class="px-4 py-2 text-xs font-semibold bg-gray-50 hover:bg-gray-100 rounded-xl cursor-pointer text-gray-500">cancel</button>
+                <button onclick="saveModalChanges()" class="px-4 py-2 text-xs font-bold text-gray-700 pastel-pink-1 hover:opacity-90 rounded-xl shadow-2xs cursor-pointer">save changes</button>
             </div>
         </div>
     </div>
@@ -156,14 +169,15 @@
         const calendarDays = document.getElementById('calendar-days');
         const calendarMonthYear = document.getElementById('calendar-month-year');
 
-        // Modal Specific Elements
+        // Modal Elements
         const taskModal = document.getElementById('task-modal');
         const modalTaskId = document.getElementById('modal-task-id');
         const modalTaskTitle = document.getElementById('modal-task-title');
         const modalTaskDate = document.getElementById('modal-task-date');
         const modalTaskTime = document.getElementById('modal-task-time');
         const modalTaskNotes = document.getElementById('modal-task-notes');
-        const modalToggleStatusBtn = document.getElementById('modal-toggle-status-btn');
+        const modalTaskProgress = document.getElementById('modal-task-progress');
+        const modalSliderValue = document.getElementById('modal-slider-value');
 
         const pinkPurpleColors = ['pastel-pink-1', 'pastel-purple-1', 'pastel-orchid', 'pastel-pink-2', 'pastel-purple-2'];
 
@@ -184,14 +198,12 @@
             return `${h}:${minutes} ${ampm}`;
         }
 
-        // Fixed: Calculates timezone-accurate calendar countdowns explicitly using local parameters
         function getCountdownText(dueDateStr) {
             if (!dueDateStr) return '';
             
             const datePart = dueDateStr.split(' ')[0]; 
             const [year, month, day] = datePart.split('-').map(num => parseInt(num));
             
-            // Generate clean structural timestamps using identical absolute local morning conditions
             const targetClean = new Date(year, month - 1, day).getTime();
             const todayClean = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate()).getTime();
             
@@ -200,7 +212,7 @@
             if (differenceInDays === 0) return '📍 today';
             if (differenceInDays === 1) return '⏳ tomorrow';
             if (differenceInDays < 0) return '⚠️ overdue';
-            return `✨ ${differenceInDays} days left`;
+            return `📌 ${differenceInDays} days left`;
         }
 
         // --- CORE APPLICATION LOGIC ---
@@ -236,27 +248,33 @@
                 const colorClass = pinkPurpleColors[index % pinkPurpleColors.length];
                 const parts = todo.due_date ? todo.due_date.split(' ') : [];
                 const displayTime = parts[1] ? format12Hour(parts[1]) : '';
-                const countdown = todo.is_completed ? '✅ done' : getCountdownText(todo.due_date);
+                const isDone = todo.is_completed;
+                const countdown = isDone ? '✅ done' : getCountdownText(todo.due_date);
                 const hasNotes = todo.notes && todo.notes.trim() !== '';
+                const progressPct = todo.progress !== undefined && todo.progress !== null ? todo.progress : (isDone ? 100 : 0);
 
                 const li = document.createElement('li');
                 li.id = `task-card-${todo.id}`;
-                li.className = `flex flex-col p-4 rounded-xl border border-black/5 transition-all cursor-pointer ${colorClass} ${todo.is_completed ? 'opacity-40 line-through' : ''}`;
                 
-                // Clicking the entire card wrapper now launches the deep editing details modal popup
+                // Toggle card style depending on completion status
+                li.className = `flex flex-col p-4 rounded-xl border border-black/5 transition-all cursor-pointer ${colorClass} ${isDone ? 'opacity-40 line-through' : ''}`;
                 li.onclick = () => openModal(todo.id);
                 
+                // Fixed: Nested child text blocks inherit completion opacity adjustments cleanly. Emojis stay un-faded on active items!
                 li.innerHTML = `
                     <div class="flex items-start justify-between gap-2">
                         <div class="flex-1 text-sm font-semibold lowercase break-all">
-                            ${todo.title} ${hasNotes ? '<span class="text-[10px] opacity-40 ml-1">📝</span>' : ''}
+                            ${todo.title} ${hasNotes ? '<span class="text-[10px] ml-1">📝</span>' : ''}
                         </div>
-                        <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors text-xs font-bold px-1 cursor-pointer shrink-0">
+                        <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors text-xs font-bold px-1 cursor-pointer shrink-0 line-none decoration-transparent inline-block">
                             ✕
                         </button>
                     </div>
-                    <div class="flex items-center justify-between mt-2 text-[11px] font-medium text-purple-950/60 tracking-tight">
-                        <span class="opacity-70">${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
+                    <div class="flex items-center justify-between mt-2 text-[11px] font-medium tracking-tight text-purple-950/60">
+                        <div class="flex items-center gap-2">
+                            <span>${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
+                            ${!isDone && progressPct > 0 ? `<span class="text-[10px] bg-purple-500/10 text-purple-700 px-1.5 py-0.2 rounded font-bold">${progressPct}%</span>` : ''}
+                        </div>
                         <span class="bg-white/60 px-2 py-0.5 rounded-md font-bold shadow-2xs">${countdown}</span>
                     </div>
                 `;
@@ -276,25 +294,14 @@
             modalTaskTitle.value = todo.title;
             modalTaskNotes.value = todo.notes || '';
             
-            // Extract baseline items
             const parts = todo.due_date ? todo.due_date.split(' ') : ['', ''];
             modalTaskDate.value = parts[0] || '';
             modalTaskTime.value = parts[1] || '';
 
-            // Handle functional checklist tags inside modal UI
-            if (todo.is_completed) {
-                modalToggleStatusBtn.textContent = "mark active";
-                modalToggleStatusBtn.className = "px-4 py-2 text-xs font-bold rounded-xl bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer";
-            } else {
-                modalToggleStatusBtn.textContent = "mark complete";
-                modalToggleStatusBtn.className = "px-4 py-2 text-xs font-bold rounded-xl bg-gray-50 hover:bg-gray-100 border border-black/5 cursor-pointer text-gray-500";
-            }
-
-            // Set up status toggling event connection
-            modalToggleStatusBtn.onclick = async () => {
-                await toggleTodo(todo.id, todo.is_completed);
-                closeModal();
-            };
+            // Handle range slider defaults setup
+            const currentProgress = todo.progress !== undefined && todo.progress !== null ? todo.progress : (todo.is_completed ? 100 : 0);
+            modalTaskProgress.value = currentProgress;
+            modalSliderValue.textContent = currentProgress + '%';
 
             taskModal.classList.remove('hidden');
         };
@@ -309,6 +316,7 @@
             const dateVal = modalTaskDate.value;
             const timeVal = modalTaskTime.value;
             const updatedNotes = modalTaskNotes.value;
+            const progressVal = parseInt(modalTaskProgress.value);
 
             if (!updatedTitle || !dateVal) {
                 alert('description and date are required fields.');
@@ -316,13 +324,18 @@
             }
 
             const compositeDeadlineString = timeVal ? `${dateVal} ${timeVal}` : dateVal;
+            
+            // Smart completion flag synchronization based on slider value
+            const targetCompletionBoolean = (progressVal === 100);
 
             const { error } = await supabaseClient
                 .from('todos')
                 .update({ 
                     title: updatedTitle, 
                     due_date: compositeDeadlineString,
-                    notes: updatedNotes 
+                    notes: updatedNotes,
+                    progress: progressVal,
+                    is_completed: targetCompletionBoolean
                 })
                 .eq('id', id);
 
@@ -390,7 +403,7 @@
             renderCalendarGrid();
         };
 
-        // --- EVENT ATTACHMENTS & BASE OPERATIONS ---
+        // --- FORM HANDLING ---
 
         todoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -404,7 +417,7 @@
 
             const { error } = await supabaseClient
                 .from('todos')
-                .insert([{ title, is_completed: false, due_date: compositeDeadlineString, notes: '' }]);
+                .insert([{ title, is_completed: false, due_date: compositeDeadlineString, notes: '', progress: 0 }]);
 
             if (error) {
                 console.error('Error adding data:', error);
@@ -416,16 +429,6 @@
             }
         });
 
-        window.toggleTodo = async function(id, currentStatus) {
-            const { error } = await supabaseClient
-                .from('todos')
-                .update({ is_completed: !currentStatus })
-                .eq('id', id);
-
-            if (error) console.error('Error updating status:', error);
-            else fetchTodos();
-        };
-
         window.deleteTodo = async function(id) {
             const { error } = await supabaseClient
                 .from('todos')
@@ -436,7 +439,7 @@
             else fetchTodos();
         };
 
-        // Run instantly on file initialization load
+        // Run instantly on layout deployment setup
         fetchTodos();
     </script>
 </body>
