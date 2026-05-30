@@ -77,10 +77,12 @@
 
     <script>
         // --- SUPABASE CONFIGURATION ---
-        const SUPABASE_URL = rvuidgtkyerxhbiknznr.supabase.co;
-        const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2dWlkZ3RreWVyeGhiaWtuem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjA2MTUsImV4cCI6MjA5NTY5NjYxNX0.D_a_Ez5PHNnANp9O_zPeZbztphBP2pBHtLDN67-Ren4;
+        // Just insert your unique project reference id right between 'https://' and '.supabase.co'
+        const SUPABASE_URL = 'https://rvuidgtkyerxhbiknznr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2dWlkZ3RreWVyeGhiaWtuem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjA2MTUsImV4cCI6MjA5NTY5NjYxNX0.D_a_Ez5PHNnANp9O_zPeZbztphBP2pBHtLDN67-Ren4';
         
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Fixed: Renamed to avoid syntax collision with the global library object
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- DOM ELEMENTS ---
         const todoForm = document.getElementById('todo-form');
@@ -94,7 +96,7 @@
 
         const pastelColors = ['pastel-pink', 'pastel-blue', 'pastel-green', 'pastel-purple', 'pastel-yellow'];
 
-        // Get current date context for the static display calendar
+        // Get current date context for the display calendar
         const now = new Date();
         const currentYear = now.getFullYear();
         const currentMonth = now.getMonth(); 
@@ -103,7 +105,7 @@
         
         // Fetch tasks chronologically (newest created first)
         async function fetchTodos() {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('todos')
                 .select('*')
                 .order('created_at', { ascending: false });
@@ -119,7 +121,6 @@
 
         // Render both the sidebar and the background dashboard elements
         function renderDashboard(todos) {
-            // Update List UI
             todoList.innerHTML = '';
             loadingState.classList.add('hidden');
             todoList.classList.remove('hidden');
@@ -183,12 +184,13 @@
             const title = todoInput.value.trim().toLowerCase();
             if (!title) return;
 
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('todos')
                 .insert([{ title, is_completed: false }]);
 
             if (error) {
                 console.error('Error adding data:', error);
+                alert('failed to add task. ensure rls policies are open.');
             } else {
                 todoInput.value = '';
                 fetchTodos();
@@ -197,7 +199,7 @@
 
         // Event hooks
         window.toggleTodo = async function(id, currentStatus) {
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('todos')
                 .update({ is_completed: !currentStatus })
                 .eq('id', id);
@@ -207,7 +209,7 @@
         };
 
         window.deleteTodo = async function(id) {
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('todos')
                 .delete()
                 .eq('id', id);
@@ -216,8 +218,8 @@
             else fetchTodos();
         };
 
-        // Run
-        if (SUPABASE_URL !== rvuidgtkyerxhbiknznr.supabase.co) {
+        // Run initial configuration checks
+        if (SUPABASE_URL !== 'https://rvuidgtkyerxhbiknznr.supabase.co') {
             fetchTodos();
         } else {
             loadingState.textContent = 'insert your credentials in the file script block to connect.';
