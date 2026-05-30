@@ -339,12 +339,33 @@
                 return;
             }
             
-            // SORTING LOGIC: Keep active tasks at the top, push completed (is_completed === true) to the bottom
+            // REFINED SORTING LOGIC: 
+            // 1. Status: Active tasks stay at the top, completed tasks go to the bottom.
+            // 2. Date: Chronological order by day.
+            // 3. Time: Timed tasks come BEFORE full-day tasks on the same day.
             globalTodosCache = data.sort((a, b) => {
-                if (a.is_completed === b.is_completed) {
-                    return 0; // If both are active or both are completed, maintain the due_date order from Supabase
+                // Rule 1: Completion Status
+                if (a.is_completed !== b.is_completed) {
+                    return a.is_completed ? 1 : -1;
                 }
-                return a.is_completed ? 1 : -1; // Put completed items (true) after active items (false)
+
+                // Rule 2: Chronological Days
+                const dateA = a.due_date ? a.due_date.split(' ')[0] : '';
+                const dateB = b.due_date ? b.due_date.split(' ')[0] : '';
+                
+                if (dateA !== dateB) {
+                    return dateA.localeCompare(dateB);
+                }
+
+                // Rule 3: Same Day? Put Timed tasks before Full-Day tasks
+                const timeA = a.due_date ? a.due_date.split(' ')[1] : undefined;
+                const timeB = b.due_date ? b.due_date.split(' ')[1] : undefined;
+
+                if (timeA && !timeB) return -1; // 'a' has a time, 'b' is full day -> 'a' goes first
+                if (!timeA && timeB) return 1;  // 'b' has a time, 'a' is full day -> 'b' goes first
+                if (timeA && timeB) return timeA.localeCompare(timeB); // Both have times -> sort chronologically by time
+
+                return 0; // Both are full-day tasks -> keep original order
             });
 
             renderDashboard();
