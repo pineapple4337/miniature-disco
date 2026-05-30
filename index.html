@@ -24,7 +24,7 @@
 </head>
 <body class="flex flex-col h-screen text-gray-700 font-sans">
 
-    <header class="sticky top-0 z-50 bg-white border-b border-gray-100 px-4 py-3 shadow-sm">
+    <header class="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 shadow-sm">
         <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
             <div class="flex items-center justify-between w-full lg:w-auto">
                 <h1 class="text-xl font-bold tracking-tight text-gray-800">my deck 🌸</h1>
@@ -93,6 +93,50 @@
 
     </main>
 
+    <div id="task-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-xs transition-opacity">
+        <div class="w-full max-w-md p-6 bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col gap-4">
+            <div class="flex items-center justify-between border-b border-gray-50 pb-2">
+                <h3 class="text-md font-bold text-gray-800">task details ✨</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
+            </div>
+            
+            <input type="hidden" id="modal-task-id">
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">description</label>
+                    <input type="text" id="modal-task-title" class="w-full px-3 py-2 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">due date</label>
+                        <input type="date" id="modal-task-date" class="w-full px-3 py-2 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">time (optional)</label>
+                        <input type="time" id="modal-task-time" class="w-full px-3 py-2 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">notes</label>
+                    <textarea id="modal-task-notes" rows="4" placeholder="add details, links, or lists here..." class="w-full px-3 py-2.5 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none text-gray-600 placeholder-gray-300"></textarea>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 mt-2">
+                <button id="modal-toggle-status-btn" class="px-4 py-2 text-xs font-bold rounded-xl bg-gray-50 hover:bg-gray-100 border border-black/5 cursor-pointer transition-colors text-gray-500">
+                    mark complete
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeModal()" class="px-4 py-2 text-xs font-semibold bg-gray-50 hover:bg-gray-100 rounded-xl cursor-pointer text-gray-500">cancel</button>
+                    <button onclick="saveModalChanges()" class="px-4 py-2 text-xs font-bold text-gray-700 pastel-pink-1 hover:opacity-90 rounded-xl shadow-2xs cursor-pointer">save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- SUPABASE CONFIGURATION ---
         const SUPABASE_URL = 'https://rvuidgtkyerxhbiknznr.supabase.co';
@@ -111,6 +155,15 @@
         const desktopTaskCount = document.getElementById('desktop-task-count');
         const calendarDays = document.getElementById('calendar-days');
         const calendarMonthYear = document.getElementById('calendar-month-year');
+
+        // Modal Specific Elements
+        const taskModal = document.getElementById('task-modal');
+        const modalTaskId = document.getElementById('modal-task-id');
+        const modalTaskTitle = document.getElementById('modal-task-title');
+        const modalTaskDate = document.getElementById('modal-task-date');
+        const modalTaskTime = document.getElementById('modal-task-time');
+        const modalTaskNotes = document.getElementById('modal-task-notes');
+        const modalToggleStatusBtn = document.getElementById('modal-toggle-status-btn');
 
         const pinkPurpleColors = ['pastel-pink-1', 'pastel-purple-1', 'pastel-orchid', 'pastel-pink-2', 'pastel-purple-2'];
 
@@ -131,13 +184,18 @@
             return `${h}:${minutes} ${ampm}`;
         }
 
+        // Fixed: Calculates timezone-accurate calendar countdowns explicitly using local parameters
         function getCountdownText(dueDateStr) {
             if (!dueDateStr) return '';
-            const targetDate = new Date(dueDateStr.split(' ')[0]);
-            const todayClean = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate());
             
-            const differenceInTime = targetDate.getTime() - todayClean.getTime();
-            const differenceInDays = Math.ceil(differenceInTime / (1000 * 3600 * 24));
+            const datePart = dueDateStr.split(' ')[0]; 
+            const [year, month, day] = datePart.split('-').map(num => parseInt(num));
+            
+            // Generate clean structural timestamps using identical absolute local morning conditions
+            const targetClean = new Date(year, month - 1, day).getTime();
+            const todayClean = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate()).getTime();
+            
+            const differenceInDays = Math.ceil((targetClean - todayClean) / (1000 * 3600 * 24));
             
             if (differenceInDays === 0) return '📍 today';
             if (differenceInDays === 1) return '⏳ tomorrow';
@@ -148,10 +206,8 @@
         // --- CORE APPLICATION LOGIC ---
 
         async function fetchTodos() {
-            // Instantly draw calendar outline grid layout shells on screen
             renderCalendarGrid();
 
-            // Fixed: Removed the restrictive verification check block that was blocking layout loading execution loop
             const { data, error } = await supabaseClient
                 .from('todos')
                 .select('*')
@@ -181,24 +237,23 @@
                 const parts = todo.due_date ? todo.due_date.split(' ') : [];
                 const displayTime = parts[1] ? format12Hour(parts[1]) : '';
                 const countdown = todo.is_completed ? '✅ done' : getCountdownText(todo.due_date);
+                const hasNotes = todo.notes && todo.notes.trim() !== '';
 
                 const li = document.createElement('li');
                 li.id = `task-card-${todo.id}`;
-                li.className = `flex flex-col p-4 rounded-xl border border-black/5 transition-all ${colorClass} ${todo.is_completed ? 'opacity-40 line-through' : ''}`;
+                li.className = `flex flex-col p-4 rounded-xl border border-black/5 transition-all cursor-pointer ${colorClass} ${todo.is_completed ? 'opacity-40 line-through' : ''}`;
+                
+                // Clicking the entire card wrapper now launches the deep editing details modal popup
+                li.onclick = () => openModal(todo.id);
                 
                 li.innerHTML = `
                     <div class="flex items-start justify-between gap-2">
-                        <div id="title-container-${todo.id}" class="flex-1 text-sm font-semibold lowercase cursor-pointer break-all" onclick="toggleTodo('${todo.id}', ${todo.is_completed})">
-                            ${todo.title}
+                        <div class="flex-1 text-sm font-semibold lowercase break-all">
+                            ${todo.title} ${hasNotes ? '<span class="text-[10px] opacity-40 ml-1">📝</span>' : ''}
                         </div>
-                        <div class="flex items-center gap-1.5 ml-2 shrink-0">
-                            <button onclick="event.stopPropagation(); enableInlineEdit('${todo.id}', '${todo.title.replace(/'/g, "\\'")}')" class="text-gray-400 hover:text-purple-600 transition-colors text-xs font-bold px-1 cursor-pointer" title="edit description">
-                                ✎
-                            </button>
-                            <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors text-xs font-bold px-1 cursor-pointer">
-                                ✕
-                            </button>
-                        </div>
+                        <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors text-xs font-bold px-1 cursor-pointer shrink-0">
+                            ✕
+                        </button>
                     </div>
                     <div class="flex items-center justify-between mt-2 text-[11px] font-medium text-purple-950/60 tracking-tight">
                         <span class="opacity-70">${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
@@ -211,42 +266,76 @@
             renderCalendarGrid();
         }
 
-        window.enableInlineEdit = function(id, currentTitle) {
-            const container = document.getElementById(`title-container-${id}`);
-            container.removeAttribute('onclick'); 
-            container.innerHTML = `
-                <div class="flex gap-1.5 w-full mt-0.5" onclick="event.stopPropagation();">
-                    <input 
-                        type="text" 
-                        id="edit-input-${id}" 
-                        value="${currentTitle}" 
-                        class="w-full px-2 py-1 text-xs lowercase bg-white/80 border border-purple-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-400 font-normal"
-                    >
-                    <button onclick="saveInlineEdit('${id}')" class="px-2 py-1 text-[10px] font-bold text-white bg-purple-500 rounded-lg hover:bg-purple-600 shadow-2xs cursor-pointer">save</button>
-                    <button onclick="fetchTodos()" class="px-2 py-1 text-[10px] font-bold bg-white/50 rounded-lg hover:bg-white shadow-2xs border border-black/5 cursor-pointer">cancel</button>
-                </div>
-            `;
-            document.getElementById(`edit-input-${id}`).focus();
+        // --- MODAL POPUP WINDOW HANDLERS ---
+
+        window.openModal = function(id) {
+            const todo = globalTodosCache.find(t => t.id === id);
+            if (!todo) return;
+
+            modalTaskId.value = todo.id;
+            modalTaskTitle.value = todo.title;
+            modalTaskNotes.value = todo.notes || '';
+            
+            // Extract baseline items
+            const parts = todo.due_date ? todo.due_date.split(' ') : ['', ''];
+            modalTaskDate.value = parts[0] || '';
+            modalTaskTime.value = parts[1] || '';
+
+            // Handle functional checklist tags inside modal UI
+            if (todo.is_completed) {
+                modalToggleStatusBtn.textContent = "mark active";
+                modalToggleStatusBtn.className = "px-4 py-2 text-xs font-bold rounded-xl bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer";
+            } else {
+                modalToggleStatusBtn.textContent = "mark complete";
+                modalToggleStatusBtn.className = "px-4 py-2 text-xs font-bold rounded-xl bg-gray-50 hover:bg-gray-100 border border-black/5 cursor-pointer text-gray-500";
+            }
+
+            // Set up status toggling event connection
+            modalToggleStatusBtn.onclick = async () => {
+                await toggleTodo(todo.id, todo.is_completed);
+                closeModal();
+            };
+
+            taskModal.classList.remove('hidden');
         };
 
-        window.saveInlineEdit = async function(id) {
-            const inputField = document.getElementById(`edit-input-${id}`);
-            const updatedTitle = inputField.value.trim().toLowerCase();
-            
-            if (!updatedTitle) return;
+        window.closeModal = function() {
+            taskModal.classList.add('hidden');
+        };
+
+        window.saveModalChanges = async function() {
+            const id = modalTaskId.value;
+            const updatedTitle = modalTaskTitle.value.trim().toLowerCase();
+            const dateVal = modalTaskDate.value;
+            const timeVal = modalTaskTime.value;
+            const updatedNotes = modalTaskNotes.value;
+
+            if (!updatedTitle || !dateVal) {
+                alert('description and date are required fields.');
+                return;
+            }
+
+            const compositeDeadlineString = timeVal ? `${dateVal} ${timeVal}` : dateVal;
 
             const { error } = await supabaseClient
                 .from('todos')
-                .update({ title: updatedTitle })
+                .update({ 
+                    title: updatedTitle, 
+                    due_date: compositeDeadlineString,
+                    notes: updatedNotes 
+                })
                 .eq('id', id);
 
             if (error) {
-                console.error('Error updating text content:', error);
-                alert('failed to update text content.');
+                console.error('Error saving records:', error);
+                alert('failed to save records.');
             } else {
+                closeModal();
                 fetchTodos();
             }
         };
+
+        // --- CALENDAR RENDERING ENGINE ---
 
         function renderCalendarGrid() {
             calendarDays.innerHTML = '';
@@ -280,7 +369,7 @@
                     const parts = task.due_date.split(' ');
                     const timeLabel = parts[1] ? format12Hour(parts[1]) : '';
                     tasksContainerHtml += `
-                        <div class="text-[10px] truncate px-1.5 py-0.5 rounded bg-purple-100/70 text-purple-800 border border-purple-200/30 leading-tight ${task.is_completed ? 'line-through opacity-40' : ''}" title="${task.title}">
+                        <div onclick="event.stopPropagation(); openModal('${task.id}')" class="text-[10px] truncate px-1.5 py-0.5 rounded bg-purple-100/70 text-purple-800 border border-purple-200/30 leading-tight cursor-pointer hover:bg-purple-200 transition-colors ${task.is_completed ? 'line-through opacity-40' : ''}" title="${task.title}">
                             ${timeLabel ? `<span class="font-bold opacity-80">${timeLabel}</span> ` : ''}${task.title}
                         </div>
                     `;
@@ -301,6 +390,8 @@
             renderCalendarGrid();
         };
 
+        // --- EVENT ATTACHMENTS & BASE OPERATIONS ---
+
         todoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = todoInput.value.trim().toLowerCase();
@@ -313,7 +404,7 @@
 
             const { error } = await supabaseClient
                 .from('todos')
-                .insert([{ title, is_completed: false, due_date: compositeDeadlineString }]);
+                .insert([{ title, is_completed: false, due_date: compositeDeadlineString, notes: '' }]);
 
             if (error) {
                 console.error('Error adding data:', error);
@@ -345,7 +436,7 @@
             else fetchTodos();
         };
 
-        // Run instantly on file compilation load
+        // Run instantly on file initialization load
         fetchTodos();
     </script>
 </body>
