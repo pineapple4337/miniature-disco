@@ -1,1 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pastel task tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            background-color: #f3f4f6;
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .pastel-pink { background-color: #ffd6e0; }
+        .pastel-blue { background-color: #c1f0f6; }
+        .pastel-green { background-color: #d8f3dc; }
+        .pastel-purple { background-color: #e8dbfc; }
+        .pastel-yellow { background-color: #fefae0; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4 md:p-8 text-gray-700">
 
+    <div class="w-full max-w-md md:max-w-4xl p-6 md:p-8 bg-white shadow-2xl rounded-3xl border border-gray-100 transition-all duration-300">
+        
+        <div class="flex items-center justify-between mb-6 md:mb-8 pb-4 border-b border-gray-50">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-800">my tasks 🌸</h1>
+                <p class="text-xs text-gray-400 mt-1 hidden md:block">organized, calm, and collected.</p>
+            </div>
+            <span id="task-count" class="px-3 py-1.5 text-xs font-semibold rounded-full pastel-purple shadow-sm">0 tasks</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 md:gap-8">
+            
+            <div class="md:col-span-2 space-y-4">
+                <div class="bg-gray-50/60 p-4 rounded-2xl border border-gray-100">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">add new item</h2>
+                    <form id="todo-form" class="flex flex-col gap-3">
+                        <input 
+                            type="text" 
+                            id="todo-input" 
+                            placeholder="what's next?" 
+                            required
+                            class="w-full px-4 py-3.5 text-sm lowercase bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:border-purple-300 focus:outline-none transition-all shadow-sm"
+                        >
+                        <button 
+                            type="submit" 
+                            class="w-full px-5 py-3.5 text-sm font-semibold text-gray-700 rounded-xl pastel-pink hover:opacity-95 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+                        >
+                            add to deck
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="md:col-span-3 flex flex-col">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 px-1">active deck</h2>
+                
+                <div id="loading-state" class="text-center py-8 text-sm text-gray-400">loading your deck...</div>
+                
+                <ul id="todo-list" class="space-y-3 max-h-[350px] md:max-h-[450px] overflow-y-auto pr-2 hidden custom-scrollbar">
+                    </ul>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>
