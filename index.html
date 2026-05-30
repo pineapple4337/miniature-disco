@@ -8,13 +8,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body {
-            background-color: #f9fafb;
+            background-color: #fafafa;
         }
-        .pastel-pink { background-color: #ffd6e0; }
-        .pastel-blue { background-color: #c1f0f6; }
-        .pastel-green { background-color: #d8f3dc; }
-        .pastel-purple { background-color: #e8dbfc; }
-        .pastel-yellow { background-color: #fefae0; }
+        /* Unified Pink & Purple Pastel Palette */
+        .pastel-pink-1 { background-color: #ffd6e0; }
+        .pastel-pink-2 { background-color: #ffeff2; }
+        .pastel-purple-1 { background-color: #e8dbfc; }
+        .pastel-purple-2 { background-color: #f3ebff; }
+        .pastel-orchid { background-color: #fbcbf5; }
         
         /* Hide scrollbars but keep functionality */
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -27,7 +28,7 @@
         <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
             <div class="flex items-center justify-between w-full lg:w-auto">
                 <h1 class="text-xl font-bold tracking-tight text-gray-800">my deck 🌸</h1>
-                <span id="task-count" class="lg:hidden px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple">0 tasks</span>
+                <span id="task-count" class="lg:hidden px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple-1">0 tasks</span>
             </div>
             
             <form id="todo-form" class="flex flex-col sm:flex-row w-full lg:max-w-4xl gap-2">
@@ -53,7 +54,7 @@
                 </div>
                 <button 
                     type="submit" 
-                    class="px-5 py-2.5 text-sm font-semibold text-gray-700 rounded-xl pastel-pink hover:opacity-90 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                    class="px-5 py-2.5 text-sm font-semibold text-gray-700 rounded-xl pastel-pink-1 hover:opacity-90 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 >
                     add task
                 </button>
@@ -65,7 +66,11 @@
         
         <section class="hidden md:flex flex-col flex-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
             <div class="flex items-center justify-between mb-4">
-                <h2 id="calendar-month-year" class="text-lg font-bold text-gray-800">may 2026</h2>
+                <h2 id="calendar-month-year" class="text-lg font-bold text-gray-800 lowercase">may 2026</h2>
+                <div class="flex gap-1">
+                    <button onclick="changeMonth(-1)" class="p-2 text-sm font-bold bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 transition-colors cursor-pointer text-gray-500">‹</button>
+                    <button onclick="changeMonth(1)" class="p-2 text-sm font-bold bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 transition-colors cursor-pointer text-gray-500">›</button>
+                </div>
             </div>
             <div class="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-400 mb-2">
                 <div>sun</div><div>mon</div><div>tue</div><div>wed</div><div>thu</div><div>fri</div><div>sat</div>
@@ -77,7 +82,7 @@
         <section class="w-full md:w-85 flex flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-lg font-bold text-gray-800">timeline</h2>
-                <span id="desktop-task-count" class="hidden md:inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple">0 tasks</span>
+                <span id="desktop-task-count" class="hidden md:inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple-1">0 tasks</span>
             </div>
             
             <div id="loading-state" class="text-center py-8 text-sm text-gray-400">loading your deck...</div>
@@ -107,19 +112,21 @@
         const calendarDays = document.getElementById('calendar-days');
         const calendarMonthYear = document.getElementById('calendar-month-year');
 
-        const pastelColors = ['pastel-pink', 'pastel-blue', 'pastel-green', 'pastel-purple', 'pastel-yellow'];
+        // Monochromatic Pink/Purple cycle array
+        const pinkPurpleColors = ['pastel-pink-1', 'pastel-purple-1', 'pastel-orchid', 'pastel-pink-2', 'pastel-purple-2'];
 
-        // Get current date context
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth(); 
+        // Core tracking state for dates
+        const actualToday = new Date();
+        let displayDate = new Date(); // Tracks currently viewed calendar page
 
-        // Set default date picker value to today
-        todoDate.value = now.toISOString().split('T')[0];
+        // Set default date picker input value to today
+        todoDate.value = actualToday.toISOString().split('T')[0];
+
+        // Global dataset store to allow fluid calendar shifts without extra network queries
+        let globalTodosCache = [];
 
         // --- HELPER FUNCTIONS ---
         
-        // Formats time from "14:30" to standard 12-hour "2:30 pm"
         function format12Hour(timeStr) {
             if (!timeStr) return '';
             const [hours, minutes] = timeStr.split(':');
@@ -129,13 +136,12 @@
             return `${h}:${minutes} ${ampm}`;
         }
 
-        // Calculates exact calendar days remaining
         function getCountdownText(dueDateStr) {
             if (!dueDateStr) return '';
-            const targetDate = new Date(dueDateStr.split(' ')[0]); // Extract date portion
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const targetDate = new Date(dueDateStr.split(' ')[0]);
+            const todayClean = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate());
             
-            const differenceInTime = targetDate.getTime() - today.getTime();
+            const differenceInTime = targetDate.getTime() - todayClean.getTime();
             const differenceInDays = Math.ceil(differenceInTime / (1000 * 3600 * 24));
             
             if (differenceInDays === 0) return '📍 today';
@@ -144,34 +150,36 @@
             return `✨ ${differenceInDays} days left`;
         }
 
-        // --- CORE APPLICATION LOGIC ---
+        // --- CALENDAR & TIMELINE SYSTEM ---
 
         async function fetchTodos() {
             const { data, error } = await supabaseClient
                 .from('todos')
                 .select('*')
-                .order('due_date', { ascending: true }); // Sorts timeline chronologically by deadline
+                .order('due_date', { ascending: true });
 
             if (error) {
                 console.error('Error fetching data:', error);
                 loadingState.textContent = 'database link failed.';
                 return;
             }
-            renderDashboard(data);
+            
+            globalTodosCache = data;
+            renderDashboard();
         }
 
-        function renderDashboard(todos) {
+        function renderDashboard() {
             todoList.innerHTML = '';
             loadingState.classList.add('hidden');
             todoList.classList.remove('hidden');
             
-            const countStr = `${todos.length} task${todos.length === 1 ? '' : 's'}`;
+            const countStr = `${globalTodosCache.length} task${globalTodosCache.length === 1 ? '' : 's'}`;
             mobileTaskCount.textContent = countStr;
             desktopTaskCount.textContent = countStr;
 
-            // Render Timeline Cards with Countdown Badges
-            todos.forEach((todo, index) => {
-                const colorClass = pastelColors[index % pastelColors.length];
+            // Render Timeline Cards (Pink/Purple Only)
+            globalTodosCache.forEach((todo, index) => {
+                const colorClass = pinkPurpleColors[index % pinkPurpleColors.length];
                 const parts = todo.due_date ? todo.due_date.split(' ') : [];
                 const displayTime = parts[1] ? format12Hour(parts[1]) : '';
                 const countdown = todo.is_completed ? '✅ done' : getCountdownText(todo.due_date);
@@ -188,7 +196,7 @@
                             ✕
                         </button>
                     </div>
-                    <div class="flex items-center justify-between mt-2 text-[11px] font-medium text-gray-500 tracking-tight">
+                    <div class="flex items-center justify-between mt-2 text-[11px] font-medium text-purple-950/60 tracking-tight">
                         <span class="opacity-70">${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
                         <span class="bg-white/60 px-2 py-0.5 rounded-md font-bold shadow-2xs">${countdown}</span>
                     </div>
@@ -196,52 +204,55 @@
                 todoList.appendChild(li);
             });
 
-            renderCalendarGrid(todos);
+            renderCalendarGrid();
         }
 
-        function renderCalendarGrid(todos) {
+        function renderCalendarGrid() {
             calendarDays.innerHTML = '';
             
+            const viewYear = displayDate.getFullYear();
+            const viewMonth = displayDate.getMonth();
+
             const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-            calendarMonthYear.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+            calendarMonthYear.textContent = `${monthNames[viewMonth]} ${viewYear}`;
 
-            const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
-            const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay();
+            const totalDays = new Date(viewYear, viewMonth + 1, 0).getDate();
 
-            // Gray spacer block padding for month transition alignment
+            // Overlay spacers
             for (let i = 0; i < firstDayIndex; i++) {
                 const blank = document.createElement('div');
-                blank.className = "bg-gray-50/50 rounded-xl border border-dashed border-gray-100 min-h-[90px]";
+                blank.className = "bg-purple-50/10 rounded-xl border border-dashed border-purple-100/40 min-h-[90px]";
                 calendarDays.appendChild(blank);
             }
 
-            // Build grid nodes
+            // Build structural views dynamically
             for (let day = 1; day <= totalDays; day++) {
                 const dayBox = document.createElement('div');
-                const isToday = day === now.getDate() && currentMonth === now.getMonth();
                 
-                // Formulate structural date string matching database entries (YYYY-MM-DD)
-                const currentDayString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                // Absolute truth check for highlighted current date card
+                const isRealToday = day === actualToday.getDate() && viewMonth === actualToday.getMonth() && viewYear === actualToday.getFullYear();
                 
-                // Filter matches bound to this specific calendar box date
-                const dayTasks = todos.filter(t => t.due_date && t.due_date.startsWith(currentDayString));
+                const currentDayString = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayTasks = globalTodosCache.filter(t => t.due_date && t.due_date.startsWith(currentDayString));
 
-                dayBox.className = `p-2 rounded-xl border border-gray-100 flex flex-col items-start justify-between text-left text-xs font-medium transition-all min-h-[90px] overflow-hidden ${isToday ? 'bg-amber-50/70 border-amber-200 ring-2 ring-amber-100' : 'bg-gray-50/30'}`;
+                // Beautiful glowing soft purple border/background for current active day instead of original orange/yellow
+                dayBox.className = `p-2 rounded-xl border border-gray-100 flex flex-col items-start justify-between text-left text-xs font-medium transition-all min-h-[90px] overflow-hidden ${isRealToday ? 'bg-purple-50 border-purple-300 ring-2 ring-purple-100/50' : 'bg-gray-50/30'}`;
                 
                 let tasksContainerHtml = '<div class="w-full space-y-1 mt-1 max-h-[60px] overflow-y-auto no-scrollbar">';
                 dayTasks.forEach(task => {
                     const parts = task.due_date.split(' ');
                     const timeLabel = parts[1] ? format12Hour(parts[1]) : '';
                     tasksContainerHtml += `
-                        <div class="text-[10px] truncate px-1.5 py-0.5 rounded bg-purple-100/80 text-purple-800 border border-purple-200/40 leading-tight ${task.is_completed ? 'line-through opacity-40' : ''}" title="${task.title}">
-                            ${timeLabel ? `<span class="font-bold opacity-75">${timeLabel}</span> ` : ''}${task.title}
+                        <div class="text-[10px] truncate px-1.5 py-0.5 rounded bg-purple-100/70 text-purple-800 border border-purple-200/30 leading-tight ${task.is_completed ? 'line-through opacity-40' : ''}" title="${task.title}">
+                            ${timeLabel ? `<span class="font-bold opacity-80">${timeLabel}</span> ` : ''}${task.title}
                         </div>
                     `;
                 });
                 tasksContainerHtml += '</div>';
 
                 dayBox.innerHTML = `
-                    <span class="${isToday ? 'text-amber-700 font-bold' : 'text-gray-400'}">${day}</span>
+                    <span class="${isRealToday ? 'text-purple-700 font-bold' : 'text-gray-400'}">${day}</span>
                     ${tasksContainerHtml}
                 `;
                 
@@ -249,16 +260,21 @@
             }
         }
 
-        // Insert new formatted task data
+        // External method linked to header slider chevron buttons
+        window.changeMonth = function(direction) {
+            displayDate.setMonth(displayDate.getMonth() + direction);
+            renderCalendarGrid();
+        };
+
+        // Handle addition
         todoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = todoInput.value.trim().toLowerCase();
-            const dateVal = todoDate.value; // format: "YYYY-MM-DD"
-            const timeVal = todoTime.value; // format: "HH:MM" or ""
+            const dateVal = todoDate.value;
+            const timeVal = todoTime.value;
             
             if (!title || !dateVal) return;
 
-            // Combine date and time cleanly into a single entry string separated by a space
             const compositeDeadlineString = timeVal ? `${dateVal} ${timeVal}` : dateVal;
 
             const { error } = await supabaseClient
@@ -267,16 +283,14 @@
 
             if (error) {
                 console.error('Error adding data:', error);
-                alert('failed to add task. ensure your table has the new "due_date" column.');
+                alert('failed to add task.');
             } else {
                 todoInput.value = '';
                 todoTime.value = '';
-                // Keep the current date selected so quick logging is seamless
                 fetchTodos();
             }
         });
 
-        // Toggle state updates
         window.toggleTodo = async function(id, currentStatus) {
             const { error } = await supabaseClient
                 .from('todos')
@@ -297,7 +311,7 @@
             else fetchTodos();
         };
 
-        // Initialize App
+        // Init Check Run
         if (SUPABASE_URL !== 'https://rvuidgtkyerxhbiknznr.supabase.co') {
             fetchTodos();
         } else {
