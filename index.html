@@ -19,52 +19,147 @@
         .pastel-yellow { background-color: #fefae0; }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4 md:p-8 text-gray-700">
+<body class="flex items-center justify-center min-h-screen p-4 text-gray-700">
 
-    <div class="w-full max-w-md md:max-w-4xl p-6 md:p-8 bg-white shadow-2xl rounded-3xl border border-gray-100 transition-all duration-300">
-        
-        <div class="flex items-center justify-between mb-6 md:mb-8 pb-4 border-b border-gray-50">
-            <div>
-                <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-800">my tasks 🌸</h1>
-                <p class="text-xs text-gray-400 mt-1 hidden md:block">organized, calm, and collected.</p>
-            </div>
-            <span id="task-count" class="px-3 py-1.5 text-xs font-semibold rounded-full pastel-purple shadow-sm">0 tasks</span>
+    <div class="w-full max-w-md p-6 bg-white shadow-xl rounded-2xl border border-gray-100">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-bold tracking-tight text-gray-800">my tasks 🌸</h1>
+            <span id="task-count" class="px-3 py-1 text-xs font-semibold rounded-full pastel-purple">0 tasks</span>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 md:gap-8">
-            
-            <div class="md:col-span-2 space-y-4">
-                <div class="bg-gray-50/60 p-4 rounded-2xl border border-gray-100">
-                    <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">add new item</h2>
-                    <form id="todo-form" class="flex flex-col gap-3">
-                        <input 
-                            type="text" 
-                            id="todo-input" 
-                            placeholder="what's next?" 
-                            required
-                            class="w-full px-4 py-3.5 text-sm lowercase bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:border-purple-300 focus:outline-none transition-all shadow-sm"
-                        >
-                        <button 
-                            type="submit" 
-                            class="w-full px-5 py-3.5 text-sm font-semibold text-gray-700 rounded-xl pastel-pink hover:opacity-95 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
-                        >
-                            add to deck
-                        </button>
-                    </form>
-                </div>
-            </div>
+        <form id="todo-form" class="flex gap-2 mb-6">
+            <input 
+                type="text" 
+                id="todo-input" 
+                placeholder="what's next?" 
+                required
+                class="flex-1 px-4 py-3 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all"
+            >
+            <button 
+                type="submit" 
+                class="px-5 py-3 text-sm font-semibold text-gray-700 rounded-xl pastel-pink hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+            >
+                add
+            </button>
+        </form>
 
-            <div class="md:col-span-3 flex flex-col">
-                <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 px-1">active deck</h2>
-                
-                <div id="loading-state" class="text-center py-8 text-sm text-gray-400">loading your deck...</div>
-                
-                <ul id="todo-list" class="space-y-3 max-h-[350px] md:max-h-[450px] overflow-y-auto pr-2 hidden custom-scrollbar">
-                    </ul>
-            </div>
-
-        </div>
+        <div id="loading-state" class="text-center py-4 text-sm text-gray-400">loading your deck...</div>
+        <ul id="todo-list" class="space-y-3 max-h-[400px] overflow-y-auto pr-1 hidden">
+            </ul>
     </div>
 
+    <script>
+        // --- SUPABASE CONFIGURATION ---
+        // Replace these with your actual Supabase project credentials
+        const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // --- DOM ELEMENTS ---
+        const todoForm = document.getElementById('todo-form');
+        const todoInput = document.getElementById('todo-input');
+        const todoList = document.getElementById('todo-list');
+        const loadingState = document.getElementById('loading-state');
+        const taskCount = document.getElementById('task-count');
+
+        // Pastel classes array to cycle through colors beautifully
+        const pastelColors = ['pastel-pink', 'pastel-blue', 'pastel-green', 'pastel-purple', 'pastel-yellow'];
+
+        // --- FUNCTIONS ---
+        
+        // Fetch tasks on load
+        async function fetchTodos() {
+            const { data, error } = await supabase
+                .from('todos')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('error fetching data:', error);
+                loadingState.textContent = 'failed to load tasks.';
+                return;
+            }
+
+            renderTodos(data);
+        }
+
+        // Render tasks to DOM
+        function renderTodos(todos) {
+            todoList.innerHTML = '';
+            loadingState.classList.add('hidden');
+            todoList.classList.remove('hidden');
+            taskCount.textContent = `${todos.length} task${todos.length === 1 ? '' : 's'}`;
+
+            todos.forEach((todo, index) => {
+                const colorClass = pastelColors[index % pastelColors.length];
+                const li = document.createElement('li');
+                li.className = `flex items-center justify-between p-4 rounded-xl border border-black/5 transition-all ${colorClass} ${todo.is_completed ? 'opacity-60 line-through' : ''}`;
+                
+                li.innerHTML = `
+                    <span class="text-sm font-medium lowercase cursor-pointer" onclick="toggleTodo('${todo.id}', ${todo.is_completed})">
+                        ${todo.title}
+                    </span>
+                    <button onclick="deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors cursor-pointer text-sm font-bold px-1">
+                        ✕
+                    </button>
+                `;
+                todoList.appendChild(li);
+            });
+        }
+
+        // Insert new task
+        todoForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = todoInput.value.trim().toLowerCase();
+            if (!title) return;
+
+            const { error } = await supabase
+                .from('todos')
+                .insert([{ title, is_completed: false }]);
+
+            if (error) {
+                console.error('error adding data:', error);
+            } else {
+                todoInput.value = '';
+                fetchTodos();
+            }
+        });
+
+        // Toggle completion status
+        async function toggleTodo(id, currentStatus) {
+            const { error } = await supabase
+                .from('todos')
+                .update({ is_completed: !currentStatus })
+                .eq('id', id);
+
+            if (error) {
+                console.error('error updating data:', error);
+            } else {
+                fetchTodos();
+            }
+        }
+
+        // Delete task
+        async function deleteTodo(id) {
+            const { error } = await supabase
+                .from('todos')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                console.error('error deleting data:', error);
+            } else {
+                fetchTodos();
+            }
+        }
+
+        // Initialize application
+        if (SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL') {
+            fetchTodos();
+        } else {
+            loadingState.textContent = 'please configure your supabase keys inside the script tag.';
+        }
+    </script>
 </body>
 </html>
