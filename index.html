@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>pastel dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -20,11 +20,26 @@
         /* Hide scrollbars but keep functionality */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* FIX: Lock mobile outer viewport layout completely static while preserving native desktop rules */
+        @media (max-width: 767px) {
+            html, body {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                height: 100% !important;
+                overflow: hidden !important;
+                overscroll-behavior: none;
+            }
+        }
     </style>
 </head>
 <body class="flex flex-col h-screen text-gray-700 font-sans">
 
-    <header class="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 shadow-sm">
+    <header class="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 shadow-sm shrink-0">
         <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
             <div class="flex items-center justify-between w-full lg:w-auto">
                 <h1 class="text-xl font-bold tracking-tight text-gray-800">my deck 🌸</h1>
@@ -62,7 +77,7 @@
         </div>
     </header>
 
-    <main class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-4 gap-4">
+    <main class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-4 gap-4 min-h-0">
         
         <section class="hidden md:flex flex-col flex-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
             <div class="flex items-center justify-between mb-4">
@@ -79,15 +94,15 @@
                 </div>
         </section>
 
-        <section class="w-full md:w-85 flex flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
-            <div class="flex items-center justify-between mb-4">
+        <section class="w-full md:w-85 flex flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden h-full">
+            <div class="flex items-center justify-between mb-4 shrink-0">
                 <h2 class="text-lg font-bold text-gray-800">timeline</h2>
                 <span id="desktop-task-count" class="hidden md:inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple-1">0 tasks</span>
             </div>
             
-            <div id="loading-state" class="text-center py-8 text-sm text-gray-400">loading your deck...</div>
+            <div id="loading-state" class="text-center py-8 text-sm text-gray-400 shrink-0">loading your deck...</div>
             
-            <ul id="todo-list" class="space-y-3 flex-1 overflow-y-auto no-scrollbar hidden">
+            <ul id="todo-list" class="space-y-3 flex-1 overflow-y-auto no-scrollbar hidden pb-8">
                 </ul>
         </section>
 
@@ -169,7 +184,6 @@
         const calendarDays = document.getElementById('calendar-days');
         const calendarMonthYear = document.getElementById('calendar-month-year');
 
-        // Modal Elements
         const taskModal = document.getElementById('task-modal');
         const modalTaskId = document.getElementById('modal-task-id');
         const modalTaskTitle = document.getElementById('modal-task-title');
@@ -255,12 +269,9 @@
 
                 const li = document.createElement('li');
                 li.id = `task-card-${todo.id}`;
-                
-                // Toggle card style depending on completion status
                 li.className = `flex flex-col p-4 rounded-xl border border-black/5 transition-all cursor-pointer ${colorClass} ${isDone ? 'opacity-40 line-through' : ''}`;
                 li.onclick = () => openModal(todo.id);
                 
-                // Fixed: Nested child text blocks inherit completion opacity adjustments cleanly. Emojis stay un-faded on active items!
                 li.innerHTML = `
                     <div class="flex items-start justify-between gap-2">
                         <div class="flex-1 text-sm font-semibold lowercase break-all">
@@ -284,8 +295,6 @@
             renderCalendarGrid();
         }
 
-        // --- MODAL POPUP WINDOW HANDLERS ---
-
         window.openModal = function(id) {
             const todo = globalTodosCache.find(t => t.id === id);
             if (!todo) return;
@@ -298,7 +307,6 @@
             modalTaskDate.value = parts[0] || '';
             modalTaskTime.value = parts[1] || '';
 
-            // Handle range slider defaults setup
             const currentProgress = todo.progress !== undefined && todo.progress !== null ? todo.progress : (todo.is_completed ? 100 : 0);
             modalTaskProgress.value = currentProgress;
             modalSliderValue.textContent = currentProgress + '%';
@@ -324,8 +332,6 @@
             }
 
             const compositeDeadlineString = timeVal ? `${dateVal} ${timeVal}` : dateVal;
-            
-            // Smart completion flag synchronization based on slider value
             const targetCompletionBoolean = (progressVal === 100);
 
             const { error } = await supabaseClient
@@ -347,8 +353,6 @@
                 fetchTodos();
             }
         };
-
-        // --- CALENDAR RENDERING ENGINE ---
 
         function renderCalendarGrid() {
             calendarDays.innerHTML = '';
@@ -403,8 +407,6 @@
             renderCalendarGrid();
         };
 
-        // --- FORM HANDLING ---
-
         todoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = todoInput.value.trim().toLowerCase();
@@ -439,7 +441,6 @@
             else fetchTodos();
         };
 
-        // Run instantly on layout deployment setup
         fetchTodos();
     </script>
 </body>
