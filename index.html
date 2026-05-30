@@ -24,20 +24,33 @@
 <body class="flex flex-col h-screen text-gray-700 font-sans">
 
     <header class="sticky top-0 z-50 bg-white border-b border-gray-100 px-4 py-3 shadow-sm">
-        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div class="flex items-center justify-between w-full sm:w-auto">
+        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
+            <div class="flex items-center justify-between w-full lg:w-auto">
                 <h1 class="text-xl font-bold tracking-tight text-gray-800">my deck 🌸</h1>
-                <span id="task-count" class="sm:hidden px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple">0 tasks</span>
+                <span id="task-count" class="lg:hidden px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple">0 tasks</span>
             </div>
             
-            <form id="todo-form" class="flex w-full sm:max-w-md gap-2">
+            <form id="todo-form" class="flex flex-col sm:flex-row w-full lg:max-w-4xl gap-2">
                 <input 
                     type="text" 
                     id="todo-input" 
                     placeholder="what's next?" 
                     required
-                    class="flex-1 px-4 py-2.5 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all"
+                    class="flex-1 min-w-[180px] px-4 py-2.5 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all"
                 >
+                <div class="flex gap-2 flex-1 sm:flex-none">
+                    <input 
+                        type="date" 
+                        id="todo-date"
+                        required
+                        class="w-full sm:w-auto px-3 py-2.5 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-500"
+                    >
+                    <input 
+                        type="time" 
+                        id="todo-time"
+                        class="w-full sm:w-auto px-3 py-2.5 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-500"
+                    >
+                </div>
                 <button 
                     type="submit" 
                     class="px-5 py-2.5 text-sm font-semibold text-gray-700 rounded-xl pastel-pink hover:opacity-90 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
@@ -57,11 +70,11 @@
             <div class="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-400 mb-2">
                 <div>sun</div><div>mon</div><div>tue</div><div>wed</div><div>thu</div><div>fri</div><div>sat</div>
             </div>
-            <div id="calendar-days" class="grid grid-cols-7 gap-2 flex-1 auto-rows-fr">
+            <div id="calendar-days" class="grid grid-cols-7 gap-2 flex-1 auto-rows-fr overflow-y-auto no-scrollbar">
                 </div>
         </section>
 
-        <section class="w-full md:w-80 flex flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
+        <section class="w-full md:w-85 flex flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-lg font-bold text-gray-800">timeline</h2>
                 <span id="desktop-task-count" class="hidden md:inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple">0 tasks</span>
@@ -77,16 +90,16 @@
 
     <script>
         // --- SUPABASE CONFIGURATION ---
-        // Just insert your unique project reference id right between 'https://' and '.supabase.co'
         const SUPABASE_URL = 'https://rvuidgtkyerxhbiknznr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2dWlkZ3RreWVyeGhiaWtuem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjA2MTUsImV4cCI6MjA5NTY5NjYxNX0.D_a_Ez5PHNnANp9O_zPeZbztphBP2pBHtLDN67-Ren4';
         
-        // Fixed: Renamed to avoid syntax collision with the global library object
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- DOM ELEMENTS ---
         const todoForm = document.getElementById('todo-form');
         const todoInput = document.getElementById('todo-input');
+        const todoDate = document.getElementById('todo-date');
+        const todoTime = document.getElementById('todo-time');
         const todoList = document.getElementById('todo-list');
         const loadingState = document.getElementById('loading-state');
         const mobileTaskCount = document.getElementById('task-count');
@@ -96,30 +109,57 @@
 
         const pastelColors = ['pastel-pink', 'pastel-blue', 'pastel-green', 'pastel-purple', 'pastel-yellow'];
 
-        // Get current date context for the display calendar
+        // Get current date context
         const now = new Date();
         const currentYear = now.getFullYear();
         const currentMonth = now.getMonth(); 
 
-        // --- FUNCTIONS ---
+        // Set default date picker value to today
+        todoDate.value = now.toISOString().split('T')[0];
+
+        // --- HELPER FUNCTIONS ---
         
-        // Fetch tasks chronologically (newest created first)
+        // Formats time from "14:30" to standard 12-hour "2:30 pm"
+        function format12Hour(timeStr) {
+            if (!timeStr) return '';
+            const [hours, minutes] = timeStr.split(':');
+            let h = parseInt(hours);
+            const ampm = h >= 12 ? 'pm' : 'am';
+            h = h % 12 || 12;
+            return `${h}:${minutes} ${ampm}`;
+        }
+
+        // Calculates exact calendar days remaining
+        function getCountdownText(dueDateStr) {
+            if (!dueDateStr) return '';
+            const targetDate = new Date(dueDateStr.split(' ')[0]); // Extract date portion
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            
+            const differenceInTime = targetDate.getTime() - today.getTime();
+            const differenceInDays = Math.ceil(differenceInTime / (1000 * 3600 * 24));
+            
+            if (differenceInDays === 0) return '📍 today';
+            if (differenceInDays === 1) return '⏳ tomorrow';
+            if (differenceInDays < 0) return '⚠️ overdue';
+            return `✨ ${differenceInDays} days left`;
+        }
+
+        // --- CORE APPLICATION LOGIC ---
+
         async function fetchTodos() {
             const { data, error } = await supabaseClient
                 .from('todos')
                 .select('*')
-                .order('created_at', { ascending: false });
+                .order('due_date', { ascending: true }); // Sorts timeline chronologically by deadline
 
             if (error) {
                 console.error('Error fetching data:', error);
                 loadingState.textContent = 'database link failed.';
                 return;
             }
-
             renderDashboard(data);
         }
 
-        // Render both the sidebar and the background dashboard elements
         function renderDashboard(todos) {
             todoList.innerHTML = '';
             loadingState.classList.add('hidden');
@@ -129,19 +169,29 @@
             mobileTaskCount.textContent = countStr;
             desktopTaskCount.textContent = countStr;
 
-            // Render Chronological Timeline
+            // Render Timeline Cards with Countdown Badges
             todos.forEach((todo, index) => {
                 const colorClass = pastelColors[index % pastelColors.length];
+                const parts = todo.due_date ? todo.due_date.split(' ') : [];
+                const displayTime = parts[1] ? format12Hour(parts[1]) : '';
+                const countdown = todo.is_completed ? '✅ done' : getCountdownText(todo.due_date);
+
                 const li = document.createElement('li');
-                li.className = `flex items-center justify-between p-3.5 rounded-xl border border-black/5 transition-all ${colorClass} ${todo.is_completed ? 'opacity-40 line-through' : ''}`;
+                li.className = `flex flex-col p-4 rounded-xl border border-black/5 transition-all ${colorClass} ${todo.is_completed ? 'opacity-40 line-through' : ''}`;
                 
                 li.innerHTML = `
-                    <span class="text-sm font-medium lowercase cursor-pointer flex-1" onclick="toggleTodo('${todo.id}', ${todo.is_completed})">
-                        ${todo.title}
-                    </span>
-                    <button onclick="deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors cursor-pointer text-xs font-bold px-1 ml-2">
-                        ✕
-                    </button>
+                    <div class="flex items-start justify-between gap-2">
+                        <span class="text-sm font-semibold lowercase cursor-pointer flex-1" onclick="toggleTodo('${todo.id}', ${todo.is_completed})">
+                            ${todo.title}
+                        </span>
+                        <button onclick="deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors cursor-pointer text-xs font-bold px-1">
+                            ✕
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between mt-2 text-[11px] font-medium text-gray-500 tracking-tight">
+                        <span class="opacity-70">${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
+                        <span class="bg-white/60 px-2 py-0.5 rounded-md font-bold shadow-2xs">${countdown}</span>
+                    </div>
                 `;
                 todoList.appendChild(li);
             });
@@ -149,7 +199,6 @@
             renderCalendarGrid(todos);
         }
 
-        // Generate a visual background grid context for the desktop homepage
         function renderCalendarGrid(todos) {
             calendarDays.innerHTML = '';
             
@@ -159,45 +208,75 @@
             const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
             const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-            // Padding items for previous month overhang
+            // Gray spacer block padding for month transition alignment
             for (let i = 0; i < firstDayIndex; i++) {
                 const blank = document.createElement('div');
-                blank.className = "bg-gray-50/50 rounded-xl border border-dashed border-gray-100";
+                blank.className = "bg-gray-50/50 rounded-xl border border-dashed border-gray-100 min-h-[90px]";
                 calendarDays.appendChild(blank);
             }
 
-            // Fill actual month days
+            // Build grid nodes
             for (let day = 1; day <= totalDays; day++) {
                 const dayBox = document.createElement('div');
                 const isToday = day === now.getDate() && currentMonth === now.getMonth();
                 
-                dayBox.className = `p-2 rounded-xl border border-gray-100 flex flex-col items-start justify-between text-left text-xs font-medium transition-all ${isToday ? 'bg-amber-50/70 border-amber-200 ring-2 ring-amber-100' : 'bg-gray-50/30'}`;
-                dayBox.innerHTML = `<span class="${isToday ? 'text-amber-700 font-bold' : 'text-gray-400'}">${day}</span>`;
+                // Formulate structural date string matching database entries (YYYY-MM-DD)
+                const currentDayString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                // Filter matches bound to this specific calendar box date
+                const dayTasks = todos.filter(t => t.due_date && t.due_date.startsWith(currentDayString));
+
+                dayBox.className = `p-2 rounded-xl border border-gray-100 flex flex-col items-start justify-between text-left text-xs font-medium transition-all min-h-[90px] overflow-hidden ${isToday ? 'bg-amber-50/70 border-amber-200 ring-2 ring-amber-100' : 'bg-gray-50/30'}`;
+                
+                let tasksContainerHtml = '<div class="w-full space-y-1 mt-1 max-h-[60px] overflow-y-auto no-scrollbar">';
+                dayTasks.forEach(task => {
+                    const parts = task.due_date.split(' ');
+                    const timeLabel = parts[1] ? format12Hour(parts[1]) : '';
+                    tasksContainerHtml += `
+                        <div class="text-[10px] truncate px-1.5 py-0.5 rounded bg-purple-100/80 text-purple-800 border border-purple-200/40 leading-tight ${task.is_completed ? 'line-through opacity-40' : ''}" title="${task.title}">
+                            ${timeLabel ? `<span class="font-bold opacity-75">${timeLabel}</span> ` : ''}${task.title}
+                        </div>
+                    `;
+                });
+                tasksContainerHtml += '</div>';
+
+                dayBox.innerHTML = `
+                    <span class="${isToday ? 'text-amber-700 font-bold' : 'text-gray-400'}">${day}</span>
+                    ${tasksContainerHtml}
+                `;
                 
                 calendarDays.appendChild(dayBox);
             }
         }
 
-        // Insert task directly through top bar
+        // Insert new formatted task data
         todoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = todoInput.value.trim().toLowerCase();
-            if (!title) return;
+            const dateVal = todoDate.value; // format: "YYYY-MM-DD"
+            const timeVal = todoTime.value; // format: "HH:MM" or ""
+            
+            if (!title || !dateVal) return;
+
+            // Combine date and time cleanly into a single entry string separated by a space
+            const compositeDeadlineString = timeVal ? `${dateVal} ${timeVal}` : dateVal;
 
             const { error } = await supabaseClient
                 .from('todos')
-                .insert([{ title, is_completed: false }]);
+                .insert([{ title, is_completed: false, due_date: compositeDeadlineString }]);
 
             if (error) {
                 console.error('Error adding data:', error);
-                alert('failed to add task. ensure rls policies are open.');
+                alert('failed to add task. ensure your table has the new "due_date" column.');
             } else {
                 todoInput.value = '';
+                todoTime.value = '';
+                // Keep the current date selected so quick logging is seamless
                 fetchTodos();
             }
         });
 
-        // Event hooks
+        // Toggle state updates
         window.toggleTodo = async function(id, currentStatus) {
             const { error } = await supabaseClient
                 .from('todos')
@@ -218,7 +297,7 @@
             else fetchTodos();
         };
 
-        // Run initial configuration checks
+        // Initialize App
         if (SUPABASE_URL !== 'https://rvuidgtkyerxhbiknznr.supabase.co') {
             fetchTodos();
         } else {
