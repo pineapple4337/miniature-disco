@@ -255,7 +255,14 @@
                 return;
             }
             
-            globalTodosCache = data;
+            // SORTING LOGIC: Keep active tasks at the top, push completed (is_completed === true) to the bottom
+            globalTodosCache = data.sort((a, b) => {
+                if (a.is_completed === b.is_completed) {
+                    return 0; // If both are active or both are completed, maintain the due_date order from Supabase
+                }
+                return a.is_completed ? 1 : -1; // Put completed items (true) after active items (false)
+            });
+
             renderDashboard();
         }
 
